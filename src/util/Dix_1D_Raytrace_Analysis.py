@@ -1,9 +1,7 @@
 """
-:module: Dix_1D_Raytrace_Analysis.py
-:purpose: Contains methods supporting inversion for ice-thickness estimation from primary reflection traveltimes 
-:auth: Nathan T. Stevens
-:email: nts5045@psu.edu | ntstevens@wisc.edu
-
+:module: Dix_Conversion.py
+:purpose: Contains methods supporting Dix Conversion for estimating
+interval velocities 
 
 :: TODO ::
 for hyperbolic_fit - update to include at least the 1D ray-tracer for layered structure
@@ -288,7 +286,5 @@ def raytracing_gridsearch(Zwhb,Uwhb,):
 	"""
 
 	"""
-	# Downsample firn layer velocity model
 
-	# Generate
 
