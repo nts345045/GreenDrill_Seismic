@@ -25,11 +25,11 @@ import matplotlib.pyplot as plt
 
 
 sys.path.append(os.path.join('..','..'))
-import core.KB_WHB_Inversion as kwi
-import core.Firn_Density as fpz
-import core.InvTools as inv
-import core.Dix_Conversion as dix
-import core.RayTracing1D as v1d
+import util.KB_WHB_Inversion as kwi
+import util.Firn_Density as fpz
+import util.InvTools as inv
+import util.Dix_Conversion as dix
+import util.RayTracing1D as v1d
 
 
 

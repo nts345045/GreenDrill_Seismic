@@ -17,7 +17,7 @@ from obspy import UTCDateTime, read
 import sys
 import os
 sys.path.append(os.path.join('..','..'))
-import core.TimeseriesTools as TsT
+import util.TimeseriesTools as TsT
 
 
 ##### CORE PROCESSES #####

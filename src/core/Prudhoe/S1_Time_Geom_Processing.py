@@ -7,17 +7,8 @@
     		use KB79 modeling to correct non-GPS timed data (GeoRods)
     Outputs: Compiled picks with t(x) correction factors and Source-Receiver Geometry 
     		data (Compiled Picks hereafter), initial KB79 models
-:last update: 14. FEB 2023
+:last update: 22. FEB 2023
 
-:: TODO ::
-
-Implement some form of KB79 - see notes KB79_time_corrections()?
-
---> Use closest Nodes to a given spread to do the time corrections using:
-	A KB79 estimated only from Nodes? - over-interpretation
-	A linear fit - probably do this (only needs 2 data)
-	A quadratic fit - maybe do this if data allow (at least 3 clusters)
-	A cubic fit - probably not enough data points
 """
 import pandas as pd
 import numpy as np
@@ -28,8 +19,8 @@ import os
 import matplotlib.pyplot as plt
 # Add repository root to path & get repo modules of use
 sys.path.append(os.path.join('..','..'))
-import core.GeometryTools as gt
-import core.InvTools as inv
+import util.GeometryTools as gt
+import util.InvTools as inv
 
 
 ##### SUPPORTING PROCESSES #####
