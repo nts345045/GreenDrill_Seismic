@@ -43,17 +43,19 @@ def generate_layercake_slow(Sv=[1/2500,1/3750,1/5000],Zv=[0,10,490,4000]):
 	return model
 
 def generate_layercake_vel(Vv=[2500,3750,5000],Zv=[0,10,490,4000]):
-	model = cake.LayeredModel()
-	for i_,V_ in enumerate(Vv):
-		mi = cake.Material(vp=V_)
-		lay = cake.HomogeneousLayer(Zv[i_],Zv[i_+1],mi)
-		model.append(lay)
-		if i_ < len(Vv-1):
-			mj = cake.Material(vp=Vv[i_+1])
-			ifce = cake.Interface(Zv[i_+1],mi,mj)
-		elif i_ == len(Vv) - 1:
-			mj = cake.Material(vp=1.01*Vv[-1])
-			ifce = cake.Interface(Zv[-1],mi,mj)
+	"""
+	Wrapper for generate_layercake_slow that accepts interval velocities
+	instead of slownesses
+
+	:: INPUTS ::
+	:param Vv: array-like set of velocities in m/sec
+	:param Zz: array-like set of horizon depths with z positive down
+
+	:: OUTPUT ::
+	:return model: pyrocko.cake.LayeredModel with specified layering
+	"""
+	model = generate_layercake_slow(Sv=np.array(Vv)**-1,Zv=Zv)
+
 	return model
 
 def raytrace_explicit(CakeMod,rr,Zsrc,Phase=cake.PhaseDef('p'),pps=10):
