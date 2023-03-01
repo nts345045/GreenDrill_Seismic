@@ -35,6 +35,9 @@ import core.RayTracing1D as v1d
 
 ##### CORE PROCESSES #####
 
+
+
+
 def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_mag = 1e-12):
 	"""
 	Run a Wichert-Herglotz-Bateman inversion on supplied travel-time vs offset data 
