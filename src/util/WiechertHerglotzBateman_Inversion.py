@@ -8,7 +8,7 @@ for vertical slowness profile models from apparent horizontal velocities.
 :email: ntstevens@wisc.edu | nts5045@psu.edu 
 
 :: TODO ::
--Try scipy's integral estimation methods to solve for the WHB integral
+-Test scipy's integral estimation methods to solve for the WHB integral and compare to results from trapezoidal summation
 """
 import numpy as np
 

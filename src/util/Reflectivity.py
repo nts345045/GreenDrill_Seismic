@@ -1,6 +1,9 @@
 """
 :module: Reflectivity.py
 :purpose: Contains methods for estimating source amplitudes ($A_0$)
+
+:: TODO ::
+Migrate source amplitude estimation calculations from private into public, general use methods
 """
 
 
