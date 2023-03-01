@@ -7,7 +7,8 @@
 :last update: 14. Feb 2023
 
 :TODO: 
-Update to incorporate ray-tracing methods from ttcrpy in V1.1
+Update to incorporate ray-tracing methods from ttcrpy in V1.1?
+Becoming obsolited with merge to Dix_1D_Raytrace_Analysis.py 
 """
 import numpy as np
 from pyrocko import cake
