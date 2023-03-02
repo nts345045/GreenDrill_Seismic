@@ -147,7 +147,7 @@ df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 # Subset diving-wave arrivals of interest
 pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&(df_picks['kind']==1)&(df_picks['SRoff m'] > 3)]
 # Subset primary reflection arrivals of interest
-sD_ = df_picks[(df_picks['phz']=='S')&(df_picks['SRoff m'].notna())&(df_picks['kind']==2)]
+sD_ = df_picks[(df_picks['phz']=='S')&(df_picks['SRoff m'].notna())&(df_picks['kind'].isin([1,2]))]
 
 
 ### RUN PROCESSING ON ENSEMBLE DATA ###
