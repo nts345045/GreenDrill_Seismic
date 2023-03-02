@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 
 sys.path.append(os.path.join('..','..'))
 import util.RayTracing1D as rt1
-import util.Dix_Conversion as dix
+import util.Dix_1D_Raytrace_Analysis as d1d
 
 ### CORE PROCESSES ###
 

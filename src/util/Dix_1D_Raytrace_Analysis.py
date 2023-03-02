@@ -13,6 +13,7 @@ import numpy as np
 import sys
 import os
 from pyrocko import cake
+from copy import deepcopy
 
 
 ### RMS VELOCITY METHODS ###
@@ -40,7 +41,6 @@ def calc_Vrms_2L(V1,V2,H1,H2):
 	den = t2 + t1
 	Vrms = (num/den)**0.5
 	return Vrms
-
 
 def calc_Vrms_cont(zz,VV):
 	"""
@@ -100,8 +100,6 @@ def resample_WHB(Z,uD,method='incremental increase',scalar=1.3):
 	# elif method.lower() == 'uniform'
 	# 	u_int = [uD[0]]; z_top_int = [0]; z_bot_int = [scalar]
 
-
-
 	mod_out = {'Ztop':z_top_int,'Zbot':z_bot_int,'uRMS':u_int}
 	return mod_out
 
@@ -135,8 +133,7 @@ def generate_layercake_slow(Sv=[1/2500,1/3750,1/5000],Zv=[0,10,490,4000]):
 			ifce = cake.Interface(Zv[-1],mi,mj)
 	return model
 
-
-def generate_layercake_vel(Vv=[2500,3750,5000],Zv=[0,10,490,4000]):
+def generate_layercake_vel(Vv=[2500,3850],Zv=[0,40,4000]):
 	"""
 	Wrapper for generate_layercake_slow that accepts interval velocities
 	instead of slownesses
@@ -151,6 +148,34 @@ def generate_layercake_vel(Vv=[2500,3750,5000],Zv=[0,10,490,4000]):
 	model = generate_layercake_slow(Sv=np.array(Vv)**-1,Zv=Zv)
 
 	return model
+
+def WHB2CakeMod(Uv,Zv,method='incremental increase',scalar=1.3):
+	"""
+	Convenience method for downsampling WHB outputs and converting into a 
+	pyrocko.Cake.LayeredModel
+
+	:: INPUTS ::
+	:param Uv: modeled slownesses [msec/m]
+	:param Zv: modeled depths [m BGS]
+	:param method: resampling method, see resample_WHB()
+	:param scalar: resampling scalar, see resample_WHB()
+
+	:: OUTPUT ::
+	:return model: pyrocko.Cake.LayeredModel 
+	"""
+	mod_out = resample_WHB(Zv,Uv,method=method,scalar=scalar)
+	model = generate_layercake_slow(Sv=mod_out['uRMS']*1e-3,Zv=[0] + list(mod_out['Zbot']))
+
+	return model
+
+def add_halfspace(CakeMod,Vn,Hn=4000):
+	"""
+	Add a very thick bottom layer to an exsiting 
+	"""
+	NewMod = deepcopy
+
+
+
 
 
 def raytrace_explicit(CakeMod,rr,Zsrc,Phase=cake.PhaseDef('p'),pps=10):
@@ -282,9 +307,47 @@ def hyperbolic_fitting(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10):
 	return df_out
 
 
-def raytracing_gridsearch(Zwhb,Uwhb,):
+def raytracing_NMO(CakeMod,xx,tt,Zref,dx=10,n_ref=1):
 	"""
+	Calculate data-model residuals for an up-going ray in a 1-D layered 
+	velocity structure. Uses interpolation from regularly spaced modeled
+	station location to estimate travel times at each provided station location,
+	speeding up solving of Eikonal.
+
+	:: INPUTS ::
+	:param CakeMod: pyrocko.Cake.LayeredModel with maximum depth > Zsrc
+	:param xx: station locations
+	:param tt: arrival times
+	:param Zref: guess depth to reflector
+	:param dx: model receiver spacing
+	:param n_ref: number of reflections, e.g.,
+				0 = Just up-going ray (1 leg)
+				1 = Primary reflection (single-bounce, 2 legs)
+				2 = First multiple (double-bounce, 4 legs)
+				3 = Second multiple (triple-bounce, 6 legs)
+	:: OUTPUTS ::
+	:return tt_cal: Calculated travel-travel times
+	:return dd_cal: Calculated ray-path lengths
+	:return theta_cal: Calculated incidence angle at the flat reflector
 
 	"""
+	# Create model station locations
+	xx_hat = np.arange(np.nanmin(xx),np.nanmax(xx) + dx, dx)
+	# Conduct ray-tracing for upgoing ray
+	tt_hat,dd_hat,theta_hat = raytrace_summary(CakeMod,xx_hat,Zsrc=Zref)
+	# Multiply path-lengths and travel-times for specified reflection count
+	tt_hat *= 2.*n_ref
+	dd_hat *= 2.*n_ref
+	# Conduct interpolation for datapoints
+	tt_cal = np.interp(xx,xx_hat,tt_hat)
+	dd_cal = np.interp(xx,xx_hat,dd_hat)
+	if n_ref > 0:
+		theta_cal = np.interp(xx/n_ref,xx_hat,theta_hat)
+	else:
+		theta_cal = np.interp(xx,xx_hat,theta_hat)
 
+	return tt_cal,dd_cal,theta_cal
+
+
+def raytracing_gridsearch(CakeMod)
 
