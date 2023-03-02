@@ -28,15 +28,11 @@ sys.path.append(os.path.join('..','..'))
 import util.KB_WHB_Inversion as kwi
 import util.Firn_Density as fpz
 import util.InvTools as inv
-import util.Dix_Conversion as dix
-import util.RayTracing1D as v1d
+import util.Dix_1D_Raytrace_Analysis as d1d
 
 
 
-##### CORE PROCESSES #####
-
-
-
+##### SUPPORTING PROCESSES #####
 
 def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_mag = 1e-12):
 	"""
@@ -123,37 +119,82 @@ def PP_write_outputs(OROOT,FN_start,output,df_uD,df_z,n_draw,full=False):
 	return df_sum,df_beta
 
 
-def gridsearch_dix():
-	return 'placeholder'
-
-
 ##### ACTUAL PROCESSING #####
+
+#### PROCESSING CONTROLS ####
+# Node location uncertainty in meters
+Node_xSig = 6.
+# Georod uncertainty in meters
+GeoRod_xSig = 1.
+# Phase pick time uncertainties in seconds
+tt_sig = 1e-3
+# Number of MCMC draws to conduct
+n_draw = 10
+# Array of ice-thicknesses to assess
+Zv = np.arange(450,600,1)
+dV, Vmax = 10, 3850
+NMOkwargs = {'dV':dV,'Vmax':Vmax,'dx':10,'n_ref':1}
+# Render plots?
+isplot = False
+
 ### MAP DATA ###
 ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
 OROOT = os.path.join(ROOT,'velocity_models')
 DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v5.csv')
 
-
+### Load data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
-D_ = df_picks[(df_picks['phz']=='P')& (df_picks['SRoff m'].notna())&(df_picks['kind']==1)&(df_picks['SRoff m'] > 3)]
+# Subset diving-wave arrivals of interest
+pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&(df_picks['kind']==1)&(df_picks['SRoff m'] > 3)]
+# Subset primary reflection arrivals of interest
+sD_ = df_picks[(df_picks['phz']=='S')&(df_picks['SRoff m'].notna())&(df_picks['kind']==2)]
 
-Node_xSig = 6.
-GeoRod_xSig = 1.
-tt_sig = 1e-3
-n_draw = 100
-isplot = True
-### Run full data-set version first
-xx = D_['SRoff m'].values
-tt = D_['tt sec'].values*1000. # Put into Milliseconds
-# Create coordinate standard deviation based on 
-xsig = Node_xSig*(D_['itype']=='Node').values**2 + GeoRod_xSig*(D_['itype']=='GeoRod').values**2
-tsig = np.ones(tt.shape)*tt_sig
 
-# Run model fitting 
-output_full,df_uD,df_z = run_WHB_lhs(xx,tt,xsig,tsig,n_draw=n_draw)
-# Write outputs
+### RUN PROCESSING ON ENSEMBLE DATA ###
+pxx = pD_['SRoff m'].values
+sxx = sD_['SRoff m'].values
+ptt = pD_['tt sec'].values*1000. # Put into Milliseconds
+stt = sD_['tt sec'].values
+# Create coordinate standard deviation based on travel-time pic
+pxsig = Node_xSig*(pD_['itype']=='Node').values**2 + GeoRod_xSig*(pD_['itype']=='GeoRod').values**2
+sxsig = Node_xSig*(sD_['itype']=='Node').values**2 + GeoRod_xSig*(sD_['itype']=='GeoRod').values**2
+ptsig = np.ones(ptt.shape)*tt_sig
+stsig = np.ones(stt.shape)*tt_sig
+# Run WHB analysis 
+output_full,df_uD,df_z = run_WHB_lhs(pxx,ptt,pxsig,ptsig,n_draw=n_draw)
+# Write outputs from WHB
 df_sum_full, df_beta_full = PP_write_outputs(OROOT,'Full_Data_v5',output_full,df_uD,df_z,n_draw)
+# Conduct reflection grid-search with Dix to narrow target values
+df_DIX_Q50 = d1d.hyperbolic_fitting(sxx,stt,Zv,df_sum_full['median u(z)'].values,df_sum_full['median z'].values,dV=1,Vmax=Vmax)
+# Find best-fit model
+IBEST50 = df_DIX_Q50['res L2']==df_DIX_Q50['res L2'].min()
+S_DIX_Q50 = df_DIX_Q50[IBEST50]
+# Compare to ODR analysis
+output = d1d.hyperbolic_ODR(sxx,stt,sxsig,stsig)
 
+breakpoint()
+
+# df_DIX_Q10 = d1d.hyperbolic_fitting(sxx,stt,Zv,df_sum_full['Q10 u(z)'].values,df_sum_full['Q10 z'].values,dV=1,Vmax=Vmax)
+# df_DIX_Q90 = d1d.hyperbolic_fitting(sxx,stt,Zv,df_sum_full['Q90 u(z)'].values,df_sum_full['Q90 z'].values,dV=1,Vmax=Vmax)
+# Get best-fit model
+
+# # IBEST10 = df_DIX_Q10['res L2']==df_DIX_Q10['res L2'].min()
+# # S_DIX_Q10 = df_DIX_Q10[IBEST10]
+# # IBEST90 = df_DIX_Q90['res L2']==df_DIX_Q90['res L2'].min()
+# # S_DIX_Q90 = df_DIX_Q90[IBEST90]
+# plt.figure()
+# plt.plot(sxx,stt,'ko',label='data')
+# plt.plot(sxx,d1d.hyperbolic_tt(sxx,S_DIX_Q50['Z m'].values,S_DIX_Q50['Vrms'].values),'r.',label='model')
+# # plt.plot(sxx,d1d.hyperbolic_tt(sxx,S_DIX_Q10['Z m'].values,S_DIX_Q10['Vrms'].values),'r.',label='model')
+# # plt.plot(sxx,d1d.hyperbolic_tt(sxx,S_DIX_Q90['Z m'].values,S_DIX_Q90['Vrms'].values),'r.',label='model')
+# plt.show()
+
+# breakpoint()
+# # Refine depth estimate using ray-tracing
+# df_NMO_Q10 = d1d.raytracing_gridsearch(sxx,stt,Zv,df_sum_full['Q10 u(z)'].values,df_sum_full['Q10 z'].values,**NMOkwargs)
+# df_NMO_Q50 = d1d.raytracing_gridsearch(sxx,stt,Zv,df_sum_full['median u(z)'].values,df_sum_full['median z'].values,**NMOkwargs)
+# df_NMO_Q90 = d1d.raytracing_gridsearch(sxx,stt,Zv,df_sum_full['Q90 u(z)'].values,df_sum_full['Q90 z'].values,**NMOkwargs)
+breakpoint()
 
 # Iterate across spreads
 cid = ['blue','red','m','dodgerblue','g','orange']
@@ -178,24 +219,36 @@ if isplot:
 	plt.xlabel('Kohnen Method Density ($kg/m^3$)')
 	plt.ylabel('WHB Depth (mBGS)')
 
-for i_,SP_ in enumerate(D_['spread'].unique()):
+for i_,SP_ in enumerate(pD_['spread'].unique()):
 	# Plot Group Model
 
 	print(SP_)
-	IND = D_['spread']==SP_
-	iD_ = D_[IND]; ixsig = xsig[IND]; itsig = tsig[IND]
-	ixx = iD_['SRoff m'].values
-	itt = iD_['tt sec'].values*1000. # Put into Milliseconds
+	# Subset data and uncertainties
+	pIND = pD_['spread']==SP_
+	sIND = sD_['spread']==iS_
+	ipD_ = pD_[pIND]; ipxsig = xsig[pIND]; iptsig = tsig[pIND]
+	isD_ = sD_[sIND]; isxsig = xsig[sIND]; istsig = tsig[sIND]
+
+	ipxx = ipD_['SRoff m'].values
+	iptt = ipD_['tt sec'].values*1000. # Put into Milliseconds
 	if isplot:
 		plt.subplot(221)
-		plt.plot(ixx,itt,'.',color=cid[i_],label=SP_,ms=1)#,alpha=0.25)
+		plt.plot(ipxx,iptt,'.',color=cid[i_],label=SP_,ms=1)#,alpha=0.25)
+		plt.plot(isxx,istt,'.',color=cid[i_],ms=1)
+
 	### Generate spread-specific model
 	# Get shallow structure model
-	outputi,df_uDi,df_zi = run_WHB_lhs(ixx,itt,ixsig,itsig,n_draw=n_draw)
+	outputi,df_uDi,df_zi = run_WHB_lhs(ipxx,iptt,ipxsig,iptsig,n_draw=n_draw)
 	# Conduct post-processing and write shallow structure model to disk
 	df_sum_i,df_beta_i = PP_write_outputs(OROOT,'Spread_%s'%(SP_),outputi,df_uDi,df_zi,n_draw)
-	# Conduct 
-	vpi = 1000*df_sum_i['median u(z)'].values**-1
+	# Conduct reflection grid-search with Dix to narrow target values
+	idf_DIX_Q50 = d1d.hyperbolic_fitting(isxx,istt,Zv,df_sum_full['median u(z)'].values,df_sum_full['median z'].values,dV=1,Vmax=Vmax)
+	# Find best-fit model
+	IBEST50 = df_DIX_Q50['res L2']==df_DIX_Q50['res L2'].min()
+	iS_DIX_Q50 = idf_DIX_Q50[IBEST50]
+
+	# Plotting stuff
+	vpi = 1e3/df_sum_i['median u(z)'].values
 	zi = df_sum_i['median z'].values
 	if isplot:
 		plt.subplot(222)

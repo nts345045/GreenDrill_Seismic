@@ -10,10 +10,13 @@ merge in RayTarcing1D.py methods
 
 """
 import numpy as np
+import pandas as pd
 import sys
 import os
 from pyrocko import cake
 from copy import deepcopy
+sys.path.append(os.path.join('..','..'))
+import util.InvTools as inv
 
 
 ### RMS VELOCITY METHODS ###
@@ -32,6 +35,11 @@ def hyperbolic_tt(xx,Htot,Vrms):
 	"""
 	dd = np.sqrt(xx**2 + 4*Htot**2)
 	tt = dd/Vrms
+	return tt
+
+def hyperbolic_tt_ODR(beta,xx):
+	dd = np.sqrt(xx**2 + 4*beta[0]**2)
+	tt = dd/beta[1]
 	return tt
 
 def calc_Vrms_2L(V1,V2,H1,H2):
@@ -103,7 +111,7 @@ def resample_WHB(Z,uD,method='incremental decrease',scalar=1.3):
 		ui = calc_Vrms_cont(Z[I1],uD[I1]**-1)**-1
 		Zt.append(z0); Zb.append(z1)
 		# While there is still a usable profile
-		while z1 < Z:
+		while z1 < Z[-1]:
 			# Advance bounds and calculate new index
 			z0 = z1; u0 = u1
 			I1 = u0 < I1 <= u0*scalar
@@ -317,7 +325,7 @@ def raytracing_NMO(CakeMod,xx,tt,Zref,dx=10,n_ref=1):
 
 ### GRID SEARCH FITTING FUNCTIONS ###
 
-def hyperbolic_fitting(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10):
+def hyperbolic_fitting(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dV=1):
 	"""
 	Conduct a grid-search hyperbolic fitting using the guessed parameters
 	of the thickness of the Nth layer and its velocity using the V_RMS for
@@ -327,7 +335,7 @@ def hyperbolic_fitting(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10):
 	:param xx: reflected arrival source-receiver offsets in meters
 	:param tt: reflected arrival two-way travel times in seconds
 	:param Zv: Vector of ice-thickness to guess (firn + glacier ice thickness)
-	:param Uwhb: Slowness values from WHB analysis for shallow velocity structure [in sec/m]
+	:param Uwhb: Slowness values from WHB analysis for shallow velocity structure [in msec/m]
 	:param Zwhb: Depth values from WHB analysis for shallow velocity structure [in m]
 	:param Vmax: Maximum interval velocity for glacier ice [in m/sec]
 	:param dv: Increment to discretize Velocity grid-search for bottom value from Uwhb to Vmax
@@ -348,11 +356,11 @@ def hyperbolic_fitting(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10):
 
 	"""
 	# Get bottom depth & velocity of shallow WHB profile
-	Vsb = Uwhb[-1]**-1
+	Vsb = 1e3/Uwhb[-1]
 	Vv = np.arange(Vsb,Vmax + dV,dV)
 	Hsb = Zwhb[-1]
 	# Get RMS Velocity from shallow profile
-	Vrms = calc_Vrms_cont(Zwhb,Uwhb**-1)
+	Vrms = calc_Vrms_cont(Zwhb,1e3/Uwhb)
 	# Iterate across guess-depth values
 	MODS = []
 	for Z_ in Zv:
@@ -377,7 +385,7 @@ def hyperbolic_fitting(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10):
 	return df_out
 
 
-def raytracing_gridsearch(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10,method='incremental increase',scalar=1.3,dx=10,n_ref=1):
+def raytracing_gridsearch(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10,dx=10,n_ref=1):
 	"""
 	Conduct a grid-search fitting for a flat reflector in a layered medium
 	where the thickness and velocity of the lowermost layer are unknowns and
@@ -391,8 +399,6 @@ def raytracing_gridsearch(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10,method='incremental
 	:param Zwhb: depth profile from WHB analysis [in m BGS]
 	:param Vmax: maximum velocity to consider [in m/sec]
 	:param dv: velocity increment for grid-search [in m/sec]
-	:param method: method for resample_WHB()
-	:param scalar: scalar for resample_WHB()
 	:param dx: Model station spacing for raytrace_NMO()
 	:param n_ref: Number of reflections for raytrace_NMO()
 
@@ -411,31 +417,64 @@ def raytracing_gridsearch(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10,method='incremental
 				ndata: number of datapoints
 
 	"""
-	Zt,Zb,uRMS = resample_WHB(Zwhb,Uwhb,method=method,scalar=scalar)
-	CM0 = generate_layercake_slow(Uv=uRMS*1e-3,Zv=[0]+list(Zb))
+	# Zt,Zb,uRMS = resample_WHB(Zwhb,Uwhb,method=method,scalar=scalar)
+	# breakpoint()
+
+	CM0 = generate_layercake_slow(Uv=Uwhb*1e-3,Zv=[0]+list(Zwhb))
+	CM0 = CM0.simplify()
 	MODS = []
-	Vv = np.arange(uRMS[-1]**-1,Vmax + dv,dv)
+	Vv = np.arange(1e3/Uwhb[-1],Vmax + dv,dv)
 	# Iterate across velocities for lowermost layer
 	for V_ in Vv:
 		# Append a "half-space" to the shallow model
 		CMi = add_halfspace(CM0,V_)
 		# Iterate across reflector depths
 		for Z_ in Zv:
+			print('%.2e -- %.2e'%(V_,Z_))
 			# Calculate modeled values
 			tti,ddi,thetai = raytracing_NMO(CMi,xx,tt,Z_,dx=dx,n_ref=n_ref)
 			# Calculate residuals
-			res = tt - tt_hat
+			res = tt - tti
 			# Get stats on residuals
 			resL2 = np.linalg.norm(res)
 			res_u = np.mean(res)
 			res_o = np.std(res)
 			# Summarize estimate
-			line = [Z_,Hsb,Z_ - Hsb,Vrms,V_,Vrmsi,resL2,res_u,res_o,len(xx)]
+			line = [Z_,V_,resL2,res_u,res_o,len(xx)]
 			MODS.append(line)
-	df_out = pd.DataFrame(MODS,columns=['Z m','H1 m','H2 m','V1rms','V2','Vrms',\
-						  'res L2','res mean','res std','ndata'])
+
+	df_out = pd.DataFrame(MODS,columns=['Z m','VN m/s','res L2','res mean','res std','ndata'])
 	return df_out
 
 
-# def raytracing_gridsearch(CakeMod):
+
+#### ODR METHODS
+
+def hyperbolic_ODR(xx,tt,xsig,tsig,beta0=[550,3700],ifixb=None,fit_type=0):
+	"""
+	Fit a hyperbolic NMO curve to data using Orthogonal Distance Regression
+
+	:: INPUTS ::
+	:param xx: station-reciver offsets
+	:param tt: two way travel times
+	:param xsig: station-receiver offset uncertainties
+	:param tsig: two way travel time uncertainties
+	:param beta0: initial parameter estimates [ice thickness, average column velocity]
+	:param ifixb: None or array-like of ints of rank-1 and equal length to beta: 
+						0 = free parameter
+						1 = fixed parameter
+	:param fit_type: input to odr.set_job - 0 = ODR
+											1 = ODR output including optional parameters
+											2 = LSQ
+
+	:: OUTPUT ::
+	:param output: scipy.odr.Output - output produced by a scipy ODR run. 
+					'beta' - parameter estimates (included in all fit_types)
+					'cov_beta' - model covariance matrix (included in all fit_types)
+	"""
+
+	output = inv.curve_fit_2Derr(hyperbolic_tt_ODR,xx,tt,xsig,tsig,beta0=beta0,ifixb=ifixb,fit_type=fit_type)
+
+	return output
+
 

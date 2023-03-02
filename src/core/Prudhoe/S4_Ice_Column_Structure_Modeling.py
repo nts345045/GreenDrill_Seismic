@@ -30,27 +30,7 @@ sys.path.append(os.path.join('..','..'))
 import util.RayTracing1D as rt1
 import util.Dix_1D_Raytrace_Analysis as d1d
 
-### CORE PROCESSES ###
 
-def gridsearch_dix(xx,tt,Uv,ZNv,dx=10):
-	"""
-	Conduct a grid-search over specified slownesses (Uv) and 
-	bottom-
-	"""
-	ixx = np.arange(np.min(xx),np.max(xx)+dx,dx)
-
-
-	for uN_ in Uv:
-		# Downsample overburden velocity profile
-		imod_OB = dix.resample_WHB(i_zDv['z m'],i_zDv['uD ms/m']*1e-3)
-		# Generate 1D velocity model
-		iMOD = v1d.generate_layercake_vel(Vv=[1e3/imod_OB['uRMS'],Zv=np.append([imod_OB['Ztop'],4000]))
-		# Iterate across source-depths and model travel times
-		for zN_ in zNv:
-			# Calculate travel-times for 10m grid
-			ixx = np.arange(np.min(xx),np.max(xx)+10,10)
-			itt = v1d.raytrace_explicit(iMOD,ixx,zN_)
-			itt_hat = np.interp(xx,ixx,itt)
 
 
 ##### ACTUAL PROCESSING #####
