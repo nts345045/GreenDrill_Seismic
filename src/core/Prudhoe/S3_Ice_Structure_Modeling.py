@@ -119,6 +119,75 @@ def PP_write_outputs(OROOT,FN_start,output,df_uD,df_z,n_draw,full=False):
 	return df_sum,df_beta
 
 
+def WHB_DIX_lhs(beta_a,beta_d,cov_a,cov_d,n_draw=100,min_sig2_mag=1e-12):
+	"""
+	Given parameter fits for diving wave data with the KB79 equation,
+	fits for reflected wave data with a hyperbolic moveout equationc,
+	and their covariance matrices, create a series of perturbed models for
+	shallow velocity structure using the WHB inversion, and deep layer 
+	interval velocity estimation using Dix conversion. Prior distributions
+	are sampled with a Latin Hypercube Scheme informed by the mean vectors 
+	(beta_*) and covariance matrices (cov_*) from model inputs. 
+
+	Note:
+	In this implementation model parameters from diving waves (*_a) and reflected waves
+	(*_d) are assumed to be independent (i.e., 0-valued off-diagonals for the)
+	full covariance matrix used for the LHS sampler.
+
+
+	:: INPUTS ::
+	:param beta_a: values of coefficients a1 -- a5 for Kirchner & Bentley (1979) double-exponential
+	:param beta_d: values of ice thickness and RMS velocity for a hyperbolic reflector
+	:param cov_a: covariance matrix estimated from KB79 fitting
+	:param cov_d: covariance matrix estiamted from hyperbolic fitting
+	:param n_draw: number of MCMC simulations to conduct
+	:param min_sig2_mag: minimum magnitude of covariance matrix entries to be considered non-zero
+						Rows/columns containing zero-valued diagonal values are removed and 
+						average values of these parameters (from beta_a and beta_d) are passed
+						to MCMC
+
+	:: OUTPUTS ::
+	:return Zm: Depth values for interval midpoints, shape = (n_draw,m) 
+	:return Hm: Layer thickness values for each interval, shape = (n_draw,m)
+	:return Um: Slowness values for each interval, shape = (n_draw,m)
+
+	"""
+	# Create full mean vector
+	mv = np.append(beat_a,beta_d)
+	# Create full covariance matrix - method developed with assistance from ChatGPT
+	Cm =  np.block([[cov_a,np.zeros((5,2))],[np.zeros((2,5)),cov_d]])
+	# Filter for near-0 valued covariances
+	cIND = np.diag(np.abs(Cm)) >= min_sig2_mag
+	# Create reduced model vector (guided by covariance matrix)
+	mv_crunch = mv[cIND]
+	# Create reduced model covariance matrix
+	Cm_crunch = Cm[cIND,:][:,cIND]
+	# DO ACTUAL LHS WORK (implementation from Stevens and others, 2022,J. Glac)
+	samps = inv.norm_lhs(mv_crunch,Cm_crunch,n_samps=n_draw)
+	print('Samples Drawn: %d'%(n_draw))
+	# Create holders for outputs
+	Zm,Hm,Um,=[],[],[]
+	for i_ in tqdm(range(n_draw)):
+		# Create perturbed parameter holder
+		i_ref = np.zeros(7,)
+		# Add in perturbed values
+		i_ref[cIND] += samps[i_,:]
+		# Add in 0-value locked values
+		i_ref[~cIND] += mv[~cIND]
+		# Run sanity check
+		i_ref[i_ref < min_sig2_mag] = min_sig2_mag
+		# Run WHB for shallow structure (short version - next v. provide control on kwargs beyond beta_)
+		i_zDv = kwi.loop_WHB_int(4000,abcde=i_ref[:5])
+		# Run (inverse) vRMS analysis (Dix conversion) using WHB structure as the layer-1 definition
+		Vn = @HOLDER_FUN()
+
+
+def run_full_WHB_DIX_lhs(df_picks,pfilts={'SRoff m':})
+
+
+
+
+
 ##### ACTUAL PROCESSING #####
 
 #### PROCESSING CONTROLS ####
@@ -172,28 +241,6 @@ S_DIX_Q50 = df_DIX_Q50[IBEST50]
 # Compare to ODR analysis
 output = d1d.hyperbolic_ODR(sxx,stt,sxsig,stsig)
 
-breakpoint()
-
-# df_DIX_Q10 = d1d.hyperbolic_fitting(sxx,stt,Zv,df_sum_full['Q10 u(z)'].values,df_sum_full['Q10 z'].values,dV=1,Vmax=Vmax)
-# df_DIX_Q90 = d1d.hyperbolic_fitting(sxx,stt,Zv,df_sum_full['Q90 u(z)'].values,df_sum_full['Q90 z'].values,dV=1,Vmax=Vmax)
-# Get best-fit model
-
-# # IBEST10 = df_DIX_Q10['res L2']==df_DIX_Q10['res L2'].min()
-# # S_DIX_Q10 = df_DIX_Q10[IBEST10]
-# # IBEST90 = df_DIX_Q90['res L2']==df_DIX_Q90['res L2'].min()
-# # S_DIX_Q90 = df_DIX_Q90[IBEST90]
-# plt.figure()
-# plt.plot(sxx,stt,'ko',label='data')
-# plt.plot(sxx,d1d.hyperbolic_tt(sxx,S_DIX_Q50['Z m'].values,S_DIX_Q50['Vrms'].values),'r.',label='model')
-# # plt.plot(sxx,d1d.hyperbolic_tt(sxx,S_DIX_Q10['Z m'].values,S_DIX_Q10['Vrms'].values),'r.',label='model')
-# # plt.plot(sxx,d1d.hyperbolic_tt(sxx,S_DIX_Q90['Z m'].values,S_DIX_Q90['Vrms'].values),'r.',label='model')
-# plt.show()
-
-# breakpoint()
-# # Refine depth estimate using ray-tracing
-# df_NMO_Q10 = d1d.raytracing_gridsearch(sxx,stt,Zv,df_sum_full['Q10 u(z)'].values,df_sum_full['Q10 z'].values,**NMOkwargs)
-# df_NMO_Q50 = d1d.raytracing_gridsearch(sxx,stt,Zv,df_sum_full['median u(z)'].values,df_sum_full['median z'].values,**NMOkwargs)
-# df_NMO_Q90 = d1d.raytracing_gridsearch(sxx,stt,Zv,df_sum_full['Q90 u(z)'].values,df_sum_full['Q90 z'].values,**NMOkwargs)
 breakpoint()
 
 # Iterate across spreads
@@ -275,23 +322,10 @@ if isplot:
 		plt.ylim([100,-5])
 
 
-	# Iterate across shots
-	# for j_,SH_ in enumerate(iD_['shot #'].unique()):
-	# 	JND = iD_['shot #']==SH_
-	# 	jD_ = iD_[JND]
-	# 	jxx = jD_['SRoff m'].values
-	# 	jtt = jD_['tt sec'].values
-	# 	outputj, df_uDj, df_zj = run_WHB_lhs(jxx,jtt,ixsig[JND],itsig[JND],n_draw=n_draw)
-	# 	df_sum_j,df_beta_j = PP_write_outputs(OROOT,'Spread_%s_Shot_%d'%(SP_,SH_),outputj,df_uDj,df_zj,n_draw)
-	# 	if isplot:
-	# 		plt.plot(df_sum_j['Q25 u(z)'].values**-1,df_sum_j['Q25 z'],':',color=cid[i_])
-	# 		plt.plot(df_sum_j['Q75 u(z)'].values**-1,df_sum_j['Q75 z'],':',color=cid[i_])
-	# 		plt.plot(df_sum_j['median u(z)'].values**-1,df_sum_j['median z'],'-',label='Shot %s'%(SH_))
-	# except RuntimeError:
-		# breakpoint()
 plt.show()
 
 
+# ##### END #####
 
 
 
@@ -371,6 +405,20 @@ plt.show()
 
 
 
+	# Iterate across shots
+	# for j_,SH_ in enumerate(iD_['shot #'].unique()):
+	# 	JND = iD_['shot #']==SH_
+	# 	jD_ = iD_[JND]
+	# 	jxx = jD_['SRoff m'].values
+	# 	jtt = jD_['tt sec'].values
+	# 	outputj, df_uDj, df_zj = run_WHB_lhs(jxx,jtt,ixsig[JND],itsig[JND],n_draw=n_draw)
+	# 	df_sum_j,df_beta_j = PP_write_outputs(OROOT,'Spread_%s_Shot_%d'%(SP_,SH_),outputj,df_uDj,df_zj,n_draw)
+	# 	if isplot:
+	# 		plt.plot(df_sum_j['Q25 u(z)'].values**-1,df_sum_j['Q25 z'],':',color=cid[i_])
+	# 		plt.plot(df_sum_j['Q75 u(z)'].values**-1,df_sum_j['Q75 z'],':',color=cid[i_])
+	# 		plt.plot(df_sum_j['median u(z)'].values**-1,df_sum_j['median z'],'-',label='Shot %s'%(SH_))
+	# except RuntimeError:
+		# breakpoint()
 
 # 		z_mods.append(i_zDv['z m'])
 # 		u_mods.append(i_zDv['uD ms/m'])
@@ -423,9 +471,30 @@ plt.show()
 
 
 
+# breakpoint()
+
+# df_DIX_Q10 = d1d.hyperbolic_fitting(sxx,stt,Zv,df_sum_full['Q10 u(z)'].values,df_sum_full['Q10 z'].values,dV=1,Vmax=Vmax)
+# df_DIX_Q90 = d1d.hyperbolic_fitting(sxx,stt,Zv,df_sum_full['Q90 u(z)'].values,df_sum_full['Q90 z'].values,dV=1,Vmax=Vmax)
+# Get best-fit model
+
+# # IBEST10 = df_DIX_Q10['res L2']==df_DIX_Q10['res L2'].min()
+# # S_DIX_Q10 = df_DIX_Q10[IBEST10]
+# # IBEST90 = df_DIX_Q90['res L2']==df_DIX_Q90['res L2'].min()
+# # S_DIX_Q90 = df_DIX_Q90[IBEST90]
+# plt.figure()
+# plt.plot(sxx,stt,'ko',label='data')
+# plt.plot(sxx,d1d.hyperbolic_tt(sxx,S_DIX_Q50['Z m'].values,S_DIX_Q50['Vrms'].values),'r.',label='model')
+# # plt.plot(sxx,d1d.hyperbolic_tt(sxx,S_DIX_Q10['Z m'].values,S_DIX_Q10['Vrms'].values),'r.',label='model')
+# # plt.plot(sxx,d1d.hyperbolic_tt(sxx,S_DIX_Q90['Z m'].values,S_DIX_Q90['Vrms'].values),'r.',label='model')
+# plt.show()
+
+# breakpoint()
+# # Refine depth estimate using ray-tracing
+# df_NMO_Q10 = d1d.raytracing_gridsearch(sxx,stt,Zv,df_sum_full['Q10 u(z)'].values,df_sum_full['Q10 z'].values,**NMOkwargs)
+# df_NMO_Q50 = d1d.raytracing_gridsearch(sxx,stt,Zv,df_sum_full['median u(z)'].values,df_sum_full['median z'].values,**NMOkwargs)
+# df_NMO_Q90 = d1d.raytracing_gridsearch(sxx,stt,Zv,df_sum_full['Q90 u(z)'].values,df_sum_full['Q90 z'].values,**NMOkwargs)
 
 
-# ##### END #####
 
 # def run_WHB_analysis(df_picks,XX=5e3,dx=1.,sig_rule='trap',p0=np.ones(5),bounds=(0,np.inf),output='model only'):
 # 	"""
