@@ -181,8 +181,7 @@ def WHB_DIX_lhs(beta_a,beta_d,cov_a,cov_d,n_draw=100,min_sig2_mag=1e-12):
 		# Run WHB for shallow structure (short version - next v. provide control on kwargs beyond beta_)
 		i_zDv = kwi.loop_WHB_int(4000,abcde=i_ref[:5])
 		# Run (inverse) vRMS analysis (Dix conversion) using WHB structure as the layer-1 definition
-		Vn = @HOLDER_FUN()
-
+		
 
 def run_full_WHB_DIX_lhs(df_picks,pfilts={'SRoff m':})
 
