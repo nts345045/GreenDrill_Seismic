@@ -1,6 +1,9 @@
 """
 :module: S2_Amplitude_Polarity_Extraction.py
+:purpose: STEP 2 - Extract amplitude measures and polarity values for all picks from waveform data and write
+				to file for quick access in subsequent amplitude analyses
 :auth: Nathan T. Stevens
+:email: nts5045@psu.ed | ntstevens@wisc.edu
 :Synopsis: 
 	Inputs: Compiled Picks, waveform file catalog (WFDISC)
 	Tasks: Extract amplitude estimates from waveform data at pick times 

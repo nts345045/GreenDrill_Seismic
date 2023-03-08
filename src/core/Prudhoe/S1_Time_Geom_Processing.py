@@ -1,5 +1,7 @@
 """
 :module: S1_Time_Geom_Processing.py
+:purpose: STEP 1: Conduct shot-receiver geometry calculations for subsequent calculations and conduct spread-wise
+		time corrections for GeoRod picks.
 :auth: Nathan T. Stevens
 :Synopsis:
     Inputs: Pick Times, Shot Locations, Receiver Locations
@@ -7,7 +9,6 @@
     		use KB79 modeling to correct non-GPS timed data (GeoRods)
     Outputs: Compiled picks with t(x) correction factors and Source-Receiver Geometry 
     		data (Compiled Picks hereafter), initial KB79 models
-:last update: 22. FEB 2023
 
 """
 import pandas as pd
