@@ -71,12 +71,44 @@ def calc_Vrms_cont(zz,VV):
 	# Calculate mean velocity in each layer
 	Vbar = 0.5*(VV[1:] + VV[:-1])
 	# Calculate travel-time through the layer
-	dt = dz/Vbar
+	dt = 2*dz/Vbar
 	# Calculate the RMS velocity
 	num = np.sum(dt*Vbar**2)
 	den = np.sum(dt)
 	Vrms = (num/den)**0.5
 	return Vrms
+
+
+def dix_VN(Vrms,Hrms,Vi,Zi):
+	"""
+	Calculate the velocity of the Nth layer of an N-layered layer-cake velocity model
+	using estimates of the RMS velocity of the entire stack and the overlying velocity
+	structure (Dix equation)
+
+	:: INPUTS ::
+	:param Vrms: [float] RMS velocity for the reflector at the bottom of layer N
+	:param Hrms: [float] RMS estimate of total column thickness from hyperbolic fitting to a reflector at the base of layer N
+	:param Vi: [array-like] shallow velocity structure velocities assumed to be interval-averaged values
+	:param Zi: [array-like] shallow velocity structure depths assumed to be bottom-interval depths
+
+	:: OUTPUT ::
+	:return V_N: [float] interval velocity for the Nth layer
+
+
+	"""
+	# Estimate Nth layer thickness
+	H_N_hat = Hrms - Zi[-1]
+	# Calculate shallow Vrms
+	Vrms1 = calc_Vrms_cont(Zi,Vi)
+	# Calculate shallow travel-time
+	t1 = 2*Zi[-1]/Vrms1
+	# Get calculated total travel-time for near-vertical incidence
+	t2 = 2*Hrms/Vrms
+	# Calculate lower interval velocity
+	V_N = np.sqrt(((t2*Vrms**2) - (t1*Vrms1**2))/(t2 - t1))
+	return V_N
+
+
 
 
 ### WHB PROFILE RESAMPLING
@@ -450,7 +482,7 @@ def raytracing_gridsearch(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10,dx=10,n_ref=1):
 
 #### ODR METHODS
 
-def hyperbolic_ODR(xx,tt,xsig,tsig,beta0=[550,3700],ifixb=None,fit_type=0):
+def hyperbolic_ODR(xx,tt,xsig,tsig,beta0=[550,3700],low_bnds=[10,3700],hi_bnds=[1000,4000],ifixb=None,fit_type=0):
 	"""
 	Fit a hyperbolic NMO curve to data using Orthogonal Distance Regression
 
@@ -473,7 +505,8 @@ def hyperbolic_ODR(xx,tt,xsig,tsig,beta0=[550,3700],ifixb=None,fit_type=0):
 					'cov_beta' - model covariance matrix (included in all fit_types)
 	"""
 
-	output = inv.curve_fit_2Derr(hyperbolic_tt_ODR,xx,tt,xsig,tsig,beta0=beta0,ifixb=ifixb,fit_type=fit_type)
+	output = inv.curve_fit_2Derr(hyperbolic_tt_ODR,xx,tt,xsig,tsig,beta0=beta0,ifixb=ifixb,\
+								 fit_type=fit_type)
 
 	return output
 

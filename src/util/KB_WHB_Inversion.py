@@ -159,7 +159,9 @@ def loop_WHB_int(XX,dx=1.,abcde=np.ones(5),sig_rule='trap'):
 	"""
 	Conduct Wiechert-Herglotz-Bateman inversion for a vertical slowness
 	profile from a Kirchner & Bentley (1979) double-exponential model fit
-	to travel-time(offset) data
+	to travel-time(offset) data.
+
+	THIS METHOD ASSUMES abcde ARE INVERTED USING DATA WITH TIME UNITS OF MILLISECONDS
 	
 	:: INPUTS ::
 	:param XX: maximum offset for which to estimate effective slownesses

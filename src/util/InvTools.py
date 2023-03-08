@@ -65,6 +65,7 @@ def cube_fun(beta,xx):
 	return (beta[0]*xx**3) + (beta[1]*xx**2) + (beta[2]*xx) + beta[3]
 
 
+# def curve_fit_2Derr(fun,xx,yy,xsig,ysig,beta0=None,low_bnds=None,ifixb=None,fit_type=0):
 def curve_fit_2Derr(fun,xx,yy,xsig,ysig,beta0=None,ifixb=None,fit_type=0):
 	"""
 	Orthogonal Distance Regression treatment to estimate parameters for the 
@@ -100,6 +101,19 @@ def curve_fit_2Derr(fun,xx,yy,xsig,ysig,beta0=None,ifixb=None,fit_type=0):
 	_odr_ = odr.ODR(data,model,beta0=beta0)
 	# Set solution type
 	_odr_.set_job(fit_type=fit_type)
+	# Set boundaries if needed
+	# if low_bnds is not None:
+	# 	_odf
+	# 	if hi_bnds is not None:
+	# 		_odr_.set_iprint(stpb=low_bnds,maxparm=hi_bnds)
+	# 	else:
+	# 		_odr_.set_iprint(stpb=low_bnds)
+	# else:
+	# 	if hi_bnds is not None:
+	# 		_odr_.set_iprint(maxparm=hi_bnds)
+	# 	else:
+	# 		pass
+
 	# Run regression
 	output = _odr_.run()
 

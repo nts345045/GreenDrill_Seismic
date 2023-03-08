@@ -1,6 +1,7 @@
 """
 :module: S3_Vertical_Slowness_Modeling.py
 :auth: Nathan T. Stevens
+:email: nts5045@psu.edu | ntstevens@wisc.edu
 :Synopsis:
     Inputs: Compiled picks (from S1)
     Tasks: Conduct KB79 fitting and WHB inversion (with uncertainty quant) on:
@@ -11,14 +12,11 @@
     Outputs: Gather-specific KB79 fits and vertical ice-structure models, model summary index
 
 :: TODO ::
+Figure out how to enforce a minimum boundary for hyperbolic fitting and estimation of ice-thickness/glacial ice velocity
+that does not fall below the deepest estimate from WHB inversion.
 
 """
 import pandas as pd
-
-
-
-
-# Add repository root to path & get repo modules of use
 import sys
 import os
 from tqdm import tqdm
@@ -26,6 +24,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+# Add repository root to path & get repo modules of use
 sys.path.append(os.path.join('..','..'))
 import util.KB_WHB_Inversion as kwi
 import util.Firn_Density as fpz
@@ -101,7 +100,7 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 	return output,df_uD,df_z
 
 
-def PP_write_outputs(OROOT,FN_start,output,df_uD,df_z,n_draw,full=False):
+def PP_WHB_write_outputs(OROOT,FN_start,output,df_uD,df_z,n_draw,full=False):
 	# Write all 
 	if full:
 		df_uD.T.to_csv(os.path.join(OROOT,'%s_uD_models_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
@@ -121,7 +120,7 @@ def PP_write_outputs(OROOT,FN_start,output,df_uD,df_z,n_draw,full=False):
 	return df_sum,df_beta
 
 
-def WHB_DIX_lhs(beta_a,beta_d,cov_a,cov_d,n_draw=100,min_sig2_mag=1e-12):
+def WHB_DIX_lhs(beta_a,beta_d,cov_a,cov_d,n_draw=100,min_sig2_mag=1e-12,dz=1.,sig_rule='trap'):
 	"""
 	Given parameter fits for diving wave data with the KB79 equation,
 	fits for reflected wave data with a hyperbolic moveout equationc,
@@ -147,15 +146,17 @@ def WHB_DIX_lhs(beta_a,beta_d,cov_a,cov_d,n_draw=100,min_sig2_mag=1e-12):
 						Rows/columns containing zero-valued diagonal values are removed and 
 						average values of these parameters (from beta_a and beta_d) are passed
 						to MCMC
+	:param dz: vertical resampling for WHB output estimates of u(z)
+	:param sig_rule: see util.KB_WHB_Inversion.loop_WHB_int() - rule for doing summation integral estimation
 
 	:: OUTPUTS ::
-	:return Zm: Depth values for interval midpoints, shape = (n_draw,m) 
-	:return Hm: Layer thickness values for each interval, shape = (n_draw,m)
-	:return Um: Slowness values for each interval, shape = (n_draw,m)
+	:return Zm: Depth values for interval midpoints in meters, shape = (n_draw,m) 
+	:return Hm: Layer thickness values for each interval in meters, shape = (n_draw,m)
+	:return Um: Slowness values for each interval in sec/m, shape = (n_draw,m)
 
 	"""
 	# Create full mean vector
-	mv = np.append(beat_a,beta_d)
+	mv = np.append(beta_a,beta_d)
 	# Create full covariance matrix - method developed with assistance from ChatGPT
 	Cm =  np.block([[cov_a,np.zeros((5,2))],[np.zeros((2,5)),cov_d]])
 	# Filter for near-0 valued covariances
@@ -168,7 +169,7 @@ def WHB_DIX_lhs(beta_a,beta_d,cov_a,cov_d,n_draw=100,min_sig2_mag=1e-12):
 	samps = inv.norm_lhs(mv_crunch,Cm_crunch,n_samps=n_draw)
 	print('Samples Drawn: %d'%(n_draw))
 	# Create holders for outputs
-	Zm,Hm,Um,=[],[],[]
+	Zm,Hm,Vm,=[],[],[]
 	for i_ in tqdm(range(n_draw)):
 		# Create perturbed parameter holder
 		i_ref = np.zeros(7,)
@@ -179,15 +180,107 @@ def WHB_DIX_lhs(beta_a,beta_d,cov_a,cov_d,n_draw=100,min_sig2_mag=1e-12):
 		# Run sanity check
 		i_ref[i_ref < min_sig2_mag] = min_sig2_mag
 		# Run WHB for shallow structure (short version - next v. provide control on kwargs beyond beta_)
-		i_zDv = kwi.loop_WHB_int(4000,abcde=i_ref[:5])
+		i_zDv = kwi.loop_WHB_int(4000,abcde=i_ref[:5],sig_rule=sig_rule)
+		# iZm_hat = np.arange(dz,np.nanmax(i_zDv['z m']) + dz, dz)
+		# Vnm1 = np.interp(iZm_hat,np.array(i_zDv['z m']),1e3/np.array(i_zDv['uD ms/m']))
+		Vnm1 = 1e3/np.array(i_zDv['uD ms/m'])
+		iZm_hat = np.array(i_zDv['z m'])
 		# Run (inverse) vRMS analysis (Dix conversion) using WHB structure as the layer-1 definition
-		
+		V_N = d1d.dix_VN(i_ref[6],i_ref[5],Vnm1,iZm_hat)
+		# Compile results from simulation
+		iVm = np.array(list(Vnm1) + [V_N])
+		# iUm = iVm**-1
+		iZ = np.array([0] + list(iZm_hat) + [i_ref[5] - iZm_hat[-1]])
+		iZm = np.mean([iZ[1:],iZ[:-1]],axis=0)
+		iHm = iZ[1:] - iZ[:-1]
+		Zm.append(iZm)
+		Hm.append(iHm)
+		Vm.append(iVm)
 
-def run_full_WHB_DIX_lhs(df_picks,pfilts={'SRoff m':})
+	return Zm, Hm, Vm, mv, Cm
 
 
+def PP_uZ_write_outputs(OROOT,FN_start,mv,Cm,Zm,Hm,Vm,full=False):
+	"""
+	Postporcessing wrapper and output function for values from MCMC velocity structure
+	analysis
+
+	:: INPUTS ::
+	:param OROOT: output root path [str]
+	:param FN_start: FileName start [str]
+	:param mv: model vector (from ODR analysis of KB79 and Hyperbolic Fitting)
+	:param Cm: model covariance matrix (from ODR analysis of KN79 and Hyperbolic Fitting)
+	:param Zm: Midpoint depths for perturbed models
+	:param Hm: Interval thicknesses for perturbed models
+	:param Vm: Interval velocity for perturbed models
+	:param full: [BOOL] - write out all MCMC simulations along with summary (TRUE), or just summary (FALSE)
+
+	:: OUTPUTS ::
+	:return df_sum: pandas.DataFrame containing statistical representations of the velocity structure
+					Parameters											Statistics
+					Z_mid = interval midpoint depths in meters 			mean
+					H_int = interval thicknesses in meters 				std
+					V_int = interval average velocities in m/sec 		median
+																		10th quantile (Q10)
+																		90th quantile (Q90)
+	:return df_out: pandas.DataFrame containing the combined 
+	"""
+	Zm = np.array(Zm); Hm = np.array(Hm); Vm = np.array(Vm)
+	# Iterate across MCMC variable type
+	df_sum = pd.DataFrame()
+	for l_,D_ in [('Z_mid',Zm),('H_int',Hm),('V_int',Vm)]:
+		df_ = pd.DataFrame(D_)
+		df_.index.name='Model #'
+		# If full=True, write out full MCMC simulations to disk
+		if full:
+			df_.to_csv(os.path.join(OROOT,'%s_%s_models_LHSn%d.csv'%(FN_start,l_,n_draw)),header=True,index=True)
+		# Run statistics on particular field
+		df_s = pd.DataFrame({l_+' mean':df_.mean().values,l_+' median':df_.median().values,\
+							 l_+' std':df_.std().values,l_+' Q10':df_.quantile(.1).values,\
+							 l_+' Q90':df_.quantile(.9).values})
+
+		df_sum = pd.concat([df_sum,df_s],axis=1)
+
+	# Write ODR results to file
+	df_out = pd.DataFrame(np.concatenate([mv[np.newaxis,:],Cm]).T,columns=['mean','a','b','c','d','e','H','V'],\
+							index=['a','b','c','d','e','H','V'])
+
+	df_out.to_csv(os.path.join(OROOT,'%s_ODR_values.csv'%(FN_start)),header=True,index=True)
 
 
+	df_sum.to_csv(os.path.join(OROOT,'%s_WHB_ODR_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
+
+	return df_sum,df_out
+
+
+def run_full(pxx,ptt,pxsig,ptsig,sxx,stt,sxsig,stsig,fit_type=0,n_draw=10,min_sig2_mag=1e-12,sig_rule='trap',full=False,FN_start='Placeholder_Dataset_Name',OROOT='.'):
+	"""
+	Wrapper for the following workflow
+	kwi.curvefit_KB79() - do an initial unweighted nonlinear least squares fitting to the KB79 equation
+	kwi.ODR_KB79() - use output initial parameter estiamtes from prior step to initialize an ODR solution for the KB79 (consider spatial and timing errors)
+	d1d.hyperbolic_ODR() - conduct weighted nonlinear least squares solution for orthogonal distance regression (ODR) for hyperbola
+
+
+	:: TODO :: Provide option to enforce a no low-velocity deep ice layer in d1d.hyperbolic_ODR
+
+	"""
+	# Run KB79 analysis
+	# Do unweighted inversion first to get first estimate of KB79 parameters
+	beta1,cov_beta1 = kwi.curvefit_KB79(pxx,ptt)
+	# Do inverse-variance-weighted Orthogonal Distance Regression estimate for KB79
+	out_abcde = kwi.ODR_KB79(pxx,ptt,pxsig,ptsig,beta0=beta1,fit_type=fit_type)
+	# Do WHB to get bottom-profile velocity for hyperbolic fitting boundary condition
+	z_uDv = kwi.loop_WHB_int(4000,dx=1.,abcde=out_abcde.beta,sig_rule=sig_rule)
+	# Conduct ODR fitting for Vrms and Hrms
+	out_HVrms = d1d.hyperbolic_ODR(sxx,stt,sxsig,stsig,beta0=[400,4000])
+	# Conduct MCMC simulations for uncertainty propagation for KB79, WHB, and DIX
+	Zm,Hm,Vm,mv,Cm = WHB_DIX_lhs(out_abcde.beta,out_HVrms.beta,out_abcde.cov_beta,out_HVrms.cov_beta,\
+								 n_draw=n_draw,min_sig2_mag=ms2m,sig_rule=sig_rule)
+	df_MOD,df_ODR = PP_uZ_write_outputs(OROOT,'Full_Data_v5',mv,Cm,Zm,Hm,Vm,full=full)
+
+	dict_full = {'Zm mBGS':Zm,'Hm m':Hm,'Vm m/sec':Vm,'ODR means':mv,'ODR cov':Cm}
+
+	return df_MOD,df_ODR,dict_full
 
 ##### ACTUAL PROCESSING #####
 
@@ -199,11 +292,11 @@ GeoRod_xSig = 1.
 # Phase pick time uncertainties in seconds
 tt_sig = 1e-3
 # Number of MCMC draws to conduct
-n_draw = 10
-# Array of ice-thicknesses to assess
-Zv = np.arange(450,600,1)
-dV, Vmax = 10, 3850
-NMOkwargs = {'dV':dV,'Vmax':Vmax,'dx':10,'n_ref':1}
+n_draw = 30
+ms2m=1e-12
+sig_rule='trap'
+write_MCMC = False
+
 # Render plots?
 isplot = False
 
@@ -230,100 +323,169 @@ pxsig = Node_xSig*(pD_['itype']=='Node').values**2 + GeoRod_xSig*(pD_['itype']==
 sxsig = Node_xSig*(sD_['itype']=='Node').values**2 + GeoRod_xSig*(sD_['itype']=='GeoRod').values**2
 ptsig = np.ones(ptt.shape)*tt_sig
 stsig = np.ones(stt.shape)*tt_sig
-# Run WHB analysis 
-output_full,df_uD,df_z = run_WHB_lhs(pxx,ptt,pxsig,ptsig,n_draw=n_draw)
-# Write outputs from WHB
-df_sum_full, df_beta_full = PP_write_outputs(OROOT,'Full_Data_v5',output_full,df_uD,df_z,n_draw)
-# Conduct reflection grid-search with Dix to narrow target values
-df_DIX_Q50 = d1d.hyperbolic_fitting(sxx,stt,Zv,df_sum_full['median u(z)'].values,df_sum_full['median z'].values,dV=1,Vmax=Vmax)
-# Find best-fit model
-IBEST50 = df_DIX_Q50['res L2']==df_DIX_Q50['res L2'].min()
-S_DIX_Q50 = df_DIX_Q50[IBEST50]
-# Compare to ODR analysis
-output = d1d.hyperbolic_ODR(sxx,stt,sxsig,stsig)
 
-breakpoint()
+
+# Run analysis on full dataset
+df_MOD,df_ODR,dict_full = run_full(pxx,ptt,pxsig,ptsig,sxx,stt,sxsig,stsig,\
+									fit_type=0,n_draw=n_draw,min_sig2_mag=ms2m,sig_rule=sig_rule,full=False,\
+									OROOT=OROOT,FN_start='Full_Data_v6')
+
+
+plt.figure()
+plt.subplot(211)
+plt.plot(pxx,ptt/1e3,'k.',label='Full')
+plt.plot(sxx,stt,'k.')
+
+
+k_ = 0
+for fmt,X_,Y_ in [('k-','V_int median','H_int median'),('k:','V_int Q10','H_int Q10'),('k:','V_int Q90','H_int Q90')]:
+
+	if k_ == 0:
+		plt.subplot(223)
+		plt.plot(df_MOD[X_].values,np.cumsum(df_MOD[Y_].values),fmt,label='Full')
+		plt.subplot(224)
+		plt.plot(fpz.rho_robin(df_MOD[X_].values),np.cumsum(df_MOD[Y_].values),fmt,label='Full')
+
+	else:
+		plt.subplot(223)
+		plt.plot(df_MOD[X_].values,np.cumsum(df_MOD[Y_].values),fmt)
+		plt.subplot(224)
+		plt.plot(fpz.rho_robin(df_MOD[X_].values),np.cumsum(df_MOD[Y_].values),fmt)
+
+	k_ += 1
+
+
 
 # Iterate across spreads
 cid = ['blue','red','m','dodgerblue','g','orange']
-if isplot:
-	plt.figure()
-	plt.subplot(222)
-	plt.plot(1000*df_sum_full['Q10 u(z)'].values**-1,df_sum_full['Q10 z'],'k:')
-	plt.plot(1000*df_sum_full['Q90 u(z)'].values**-1,df_sum_full['Q90 z'],'k:')
-	plt.plot(1000*df_sum_full['median u(z)'].values**-1,df_sum_full['median z'],'k-',label='Full Data')
-	plt.xlabel('WHB Compressional Velocity ($m/s$)')
-	plt.ylabel('WHB Depth (mBGS)')
-	plt.subplot(223)
-	plt.plot(fpz.rho_robin(1000*df_sum_full['median u(z)'].values**-1),df_sum_full['median z'],'k-',label='Full Data')
-	plt.plot(np.ones(2)*870,[-5,100],'k:')
-	plt.xlabel('Robin Method Density ($kg/m^3$)')
-	plt.ylabel('WHB Depth (mBGS)')
-	plt.subplot(224)
-	plt.plot(fpz.rho_kohnen(1000*df_sum_full['median u(z)'].values**-1,1000*df_sum_full['median u(z)'].values[-1]**-1),df_sum_full['median z'],'k-.',\
-							label='Full v=%d m/s'%(1000*df_sum_full['median u(z)'].values[-1]**-1))
-	plt.plot(fpz.rho_kohnen(1000*df_sum_full['median u(z)'].values**-1),df_sum_full['median z'],'k--',label='Full v=3850 m/s')
-	plt.plot(np.ones(2)*870,[-5,100],'k:')
-	plt.xlabel('Kohnen Method Density ($kg/m^3$)')
-	plt.ylabel('WHB Depth (mBGS)')
+for i_,SP_ in enumerate(pD_['spread'].unique().sort()):
+	# Subset diving-wave arrivals of interest
+	pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&(df_picks['kind']==1)&(df_picks['SRoff m'] > 3)&(df_picks['spread']==SP_)]
+	# Subset primary reflection arrivals of interest
+	sD_ = df_picks[(df_picks['phz']=='S')&(df_picks['SRoff m'].notna())&(df_picks['kind'].isin([1,2]))&(df_picks['spread']==SP_)]
 
-for i_,SP_ in enumerate(pD_['spread'].unique()):
-	# Plot Group Model
+	### RUN PROCESSING ON SPREAD DATA ###
+	pxx = pD_['SRoff m'].values
+	sxx = sD_['SRoff m'].values
+	ptt = pD_['tt sec'].values*1000. # Put into Milliseconds for KB79 inversion (provides stability)
+	stt = sD_['tt sec'].values # Keep in seconds for DIX (values are large enough for stability)
+	# Create coordinate standard deviation based on travel-time pic
+	pxsig = Node_xSig*(pD_['itype']=='Node').values**2 + GeoRod_xSig*(pD_['itype']=='GeoRod').values**2
+	sxsig = Node_xSig*(sD_['itype']=='Node').values**2 + GeoRod_xSig*(sD_['itype']=='GeoRod').values**2
+	ptsig = np.ones(ptt.shape)*tt_sig
+	stsig = np.ones(stt.shape)*tt_sig
 
-	print(SP_)
-	# Subset data and uncertainties
-	pIND = pD_['spread']==SP_
-	sIND = sD_['spread']==iS_
-	ipD_ = pD_[pIND]; ipxsig = xsig[pIND]; iptsig = tsig[pIND]
-	isD_ = sD_[sIND]; isxsig = xsig[sIND]; istsig = tsig[sIND]
-
-	ipxx = ipD_['SRoff m'].values
-	iptt = ipD_['tt sec'].values*1000. # Put into Milliseconds
-	if isplot:
-		plt.subplot(221)
-		plt.plot(ipxx,iptt,'.',color=cid[i_],label=SP_,ms=1)#,alpha=0.25)
-		plt.plot(isxx,istt,'.',color=cid[i_],ms=1)
-
-	### Generate spread-specific model
-	# Get shallow structure model
-	outputi,df_uDi,df_zi = run_WHB_lhs(ipxx,iptt,ipxsig,iptsig,n_draw=n_draw)
-	# Conduct post-processing and write shallow structure model to disk
-	df_sum_i,df_beta_i = PP_write_outputs(OROOT,'Spread_%s'%(SP_),outputi,df_uDi,df_zi,n_draw)
-	# Conduct reflection grid-search with Dix to narrow target values
-	idf_DIX_Q50 = d1d.hyperbolic_fitting(isxx,istt,Zv,df_sum_full['median u(z)'].values,df_sum_full['median z'].values,dV=1,Vmax=Vmax)
-	# Find best-fit model
-	IBEST50 = df_DIX_Q50['res L2']==df_DIX_Q50['res L2'].min()
-	iS_DIX_Q50 = idf_DIX_Q50[IBEST50]
-
-	# Plotting stuff
-	vpi = 1e3/df_sum_i['median u(z)'].values
-	zi = df_sum_i['median z'].values
-	if isplot:
-		plt.subplot(222)
-		plt.plot(1000*df_sum_i['Q10 u(z)'].values**-1,df_sum_i['Q10 z'],':',color=cid[i_])
-		plt.plot(1000*df_sum_i['Q90 u(z)'].values**-1,df_sum_i['Q90 z'],':',color=cid[i_])
-		plt.plot(vpi,zi,'-',color=cid[i_],label='Spread %s'%(SP_))
+	plt.subplot(211)
+	plt.plot(pxx,ptt/1e3,'.',color=cid[i_],label=SP_)
+	plt.plot(sxx,stt,'.',color=cid[i_])
 
 
-		plt.subplot(223)
-		plt.plot(fpz.rho_robin(vpi),zi,'-',color=cid[i_],label='Spread %s'%(SP_))
+	idf_MOD, idf_ODR, idict_full = run_full(pxx,ptt,pxsig,ptsig,sxx,stt,sxsig,stsig,\
+									fit_type=0,n_draw=n_draw,min_sig2_mag=ms2m,sig_rule=sig_rule,full=False,\
+									OROOT=OROOT,FN_start='Spread_%s_Data_v6'%(SP_))
+
+
+	k_ = 0
+	for fmt,X_,Y_ in [('-','V_int median','H_int median'),(':','V_int Q10','H_int Q10'),(':','V_int Q90','H_int Q90')]:
+		if k_ == 0:
+			plt.subplot(223)
+			plt.plot(idf_MOD[X_].values,np.cumsum(idf_MOD[Y_].values),fmt,label=SP_,color=cid[i_])
+			plt.subplot(224)
+			plt.plot(fpz.rho_robin(idf_MOD[X_].values),np.cumsum(idf_MOD[Y_].values),fmt,label=SP_,color=cid[i_])
+
+		else:
+			plt.subplot(223)
+			plt.plot(idf_MOD[X_].values,np.cumsum(idf_MOD[Y_].values),fmt,color=cid[i_])
+			plt.subplot(224)
+			plt.plot(fpz.rho_robin(idf_MOD[X_].values),np.cumsum(idf_MOD[Y_].values),fmt,color=cid[i_])
+		k_ += 1
+plt.subplot(223)
+plt.ylim([500,-10])
+plt.legend()
+plt.subplot(224)
+plt.ylim([500,-10])
+plt.legend()
+plt.show()
+# # Iterate across spreads
+# cid = ['blue','red','m','dodgerblue','g','orange']
+# if isplot:
+# 	plt.figure()
+# 	plt.subplot(222)
+# 	plt.plot(1000*df_sum_full['Q10 u(z)'].values**-1,df_sum_full['Q10 z'],'k:')
+# 	plt.plot(1000*df_sum_full['Q90 u(z)'].values**-1,df_sum_full['Q90 z'],'k:')
+# 	plt.plot(1000*df_sum_full['median u(z)'].values**-1,df_sum_full['median z'],'k-',label='Full Data')
+# 	plt.xlabel('WHB Compressional Velocity ($m/s$)')
+# 	plt.ylabel('WHB Depth (mBGS)')
+# 	plt.subplot(223)
+# 	plt.plot(fpz.rho_robin(1000*df_sum_full['median u(z)'].values**-1),df_sum_full['median z'],'k-',label='Full Data')
+# 	plt.plot(np.ones(2)*870,[-5,100],'k:')
+# 	plt.xlabel('Robin Method Density ($kg/m^3$)')
+# 	plt.ylabel('WHB Depth (mBGS)')
+# 	plt.subplot(224)
+# 	plt.plot(fpz.rho_kohnen(1000*df_sum_full['median u(z)'].values**-1,1000*df_sum_full['median u(z)'].values[-1]**-1),df_sum_full['median z'],'k-.',\
+# 							label='Full v=%d m/s'%(1000*df_sum_full['median u(z)'].values[-1]**-1))
+# 	plt.plot(fpz.rho_kohnen(1000*df_sum_full['median u(z)'].values**-1),df_sum_full['median z'],'k--',label='Full v=3850 m/s')
+# 	plt.plot(np.ones(2)*870,[-5,100],'k:')
+# 	plt.xlabel('Kohnen Method Density ($kg/m^3$)')
+# 	plt.ylabel('WHB Depth (mBGS)')
+
+# for i_,SP_ in enumerate(pD_['spread'].unique()):
+# 	# Plot Group Model
+
+# 	print(SP_)
+# 	# Subset data and uncertainties
+# 	pIND = pD_['spread']==SP_
+# 	sIND = sD_['spread']==iS_
+# 	ipD_ = pD_[pIND]; ipxsig = xsig[pIND]; iptsig = tsig[pIND]
+# 	isD_ = sD_[sIND]; isxsig = xsig[sIND]; istsig = tsig[sIND]
+
+# 	ipxx = ipD_['SRoff m'].values
+# 	iptt = ipD_['tt sec'].values*1000. # Put into Milliseconds
+# 	if isplot:
+# 		plt.subplot(221)
+# 		plt.plot(ipxx,iptt,'.',color=cid[i_],label=SP_,ms=1)#,alpha=0.25)
+# 		plt.plot(isxx,istt,'.',color=cid[i_],ms=1)
+
+# 	### Generate spread-specific model
+# 	# Get shallow structure model
+# 	outputi,df_uDi,df_zi = run_WHB_lhs(ipxx,iptt,ipxsig,iptsig,n_draw=n_draw)
+# 	# Conduct post-processing and write shallow structure model to disk
+# 	df_sum_i,df_beta_i = PP_write_outputs(OROOT,'Spread_%s'%(SP_),outputi,df_uDi,df_zi,n_draw)
+# 	# Conduct reflection grid-search with Dix to narrow target values
+# 	idf_DIX_Q50 = d1d.hyperbolic_fitting(isxx,istt,Zv,df_sum_full['median u(z)'].values,df_sum_full['median z'].values,dV=1,Vmax=Vmax)
+# 	# Find best-fit model
+# 	IBEST50 = df_DIX_Q50['res L2']==df_DIX_Q50['res L2'].min()
+# 	iS_DIX_Q50 = idf_DIX_Q50[IBEST50]
+
+# 	# Plotting stuff
+# 	vpi = 1e3/df_sum_i['median u(z)'].values
+# 	zi = df_sum_i['median z'].values
+# 	if isplot:
+# 		plt.subplot(222)
+# 		plt.plot(1000*df_sum_i['Q10 u(z)'].values**-1,df_sum_i['Q10 z'],':',color=cid[i_])
+# 		plt.plot(1000*df_sum_i['Q90 u(z)'].values**-1,df_sum_i['Q90 z'],':',color=cid[i_])
+# 		plt.plot(vpi,zi,'-',color=cid[i_],label='Spread %s'%(SP_))
+
+
+# 		plt.subplot(223)
+# 		plt.plot(fpz.rho_robin(vpi),zi,'-',color=cid[i_],label='Spread %s'%(SP_))
 
 		
 
-		plt.subplot(224)
-		plt.plot(fpz.rho_kohnen(1000*df_sum_i['median u(z)'].values**-1,1000*df_sum_i['median u(z)'].values[-1]**-1),zi,'-.',\
-								color=cid[i_],label='%s v=%d m/s'%(SP_,1000*df_sum_i['median u(z)'].values[-1]**-1))
-		plt.plot(fpz.rho_kohnen(1000*df_sum_i['median u(z)'].values**-1,),zi,'--',label='%s v=3850 m/s'%(SP_),color=cid[i_])
+# 		plt.subplot(224)
+# 		plt.plot(fpz.rho_kohnen(1000*df_sum_i['median u(z)'].values**-1,1000*df_sum_i['median u(z)'].values[-1]**-1),zi,'-.',\
+# 								color=cid[i_],label='%s v=%d m/s'%(SP_,1000*df_sum_i['median u(z)'].values[-1]**-1))
+# 		plt.plot(fpz.rho_kohnen(1000*df_sum_i['median u(z)'].values**-1,),zi,'--',label='%s v=3850 m/s'%(SP_),color=cid[i_])
 
 
-if isplot:
-	for i_ in [222,223,224]:
-		plt.subplot(i_)
-		plt.legend()
-		plt.ylim([100,-5])
+# if isplot:
+# 	for i_ in [222,223,224]:
+# 		plt.subplot(i_)
+# 		plt.legend()
+# 		plt.ylim([100,-5])
 
 
-plt.show()
+# plt.show()
 
 
 # ##### END #####
