@@ -743,6 +743,10 @@ def raytracing_gridsearch(xx,tt,Vv,Zv,Uwhb,Zwhb,dx=20,Hhs=4000,full=False):
 			res_u = np.mean(res)
 			res_o = np.std(res)
 			# Summarize estimate
+			if isinstance(Z_,np.ndarray):
+				Z_ = Z_[0]
+			if isinstance(V_,np.ndarray):
+				V_ = V_[0]
 			line = [i_,j_,Z_,V_,resL2,res_u,res_o,len(xx)]
 			MODS.append(line)
 
