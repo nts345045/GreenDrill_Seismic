@@ -8,8 +8,8 @@
             1) Whole data-set gather
             2) Spread gathers
             3) Shot gathers
-           Estimate ice-column structure using WHB profiles, propagating uncertainties with 
-           Monte Carlo Markov Chain simulations
+           Estimate ice-column structure using WHB profiles, propagating uncertainties with a
+           bootstrap approach informed by a latin hypercube sampler.
     Outputs: Gather-specific KB79 fits and vertical ice-structure models, model summary index
 
 
