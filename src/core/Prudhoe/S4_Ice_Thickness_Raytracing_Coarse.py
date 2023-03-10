@@ -7,6 +7,9 @@
 		  are considered.
 :auth: Nathan T. Stevens
 :email: nts5045@psu.edu | ntstevens@wisc.edu
+
+:: TODO ::
+test fits with kind==1, kind==2, and kind.isin([1,2])
 """
 import sys
 import os
