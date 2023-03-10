@@ -13,7 +13,7 @@ import os
 import pandas as pd
 import numpy as np
 from glob import glob
-
+import matplotlib.pyplot as plt
 
 sys.path.append(os.path.join('..','..'))
 import util.Dix_1D_Raytrace_Analysis as d1d
@@ -35,6 +35,11 @@ tt_sig = 1e-3
 # Parameter sweep coefficients
 rHN = 50 	# [m] range of H_N values to scan, centered on Hrms (from Dix equation)
 dHN = 5 	# [m] increment to scan across H_N values
+
+# Runtime controls
+issave = True
+isplot = True
+
 ##################################
 
 ### MAP FILE STRUCTURE ###
@@ -76,6 +81,7 @@ for f_ in flist:
 
 
 		# Do coarse grid-search for best-fit H_N and V_N
+		# Get bottom-WHB velocity
 		VN = 1e3/df_MOD['median u(z)'].values[-1]
 		# Conduct Dix estimate of ice-thickness for initial parameter guess
 		ODR_Dix = d1d.hyperbolic_ODR(xx,tt,xsig,tsig,beta0=[400,VN])
@@ -83,11 +89,73 @@ for f_ in flist:
 		Vrms = ODR_Dix.beta[1]
 
 		# Set ZN scan vector
-		Z_Nv = np.linspace(Hrms - 25,Hrms + 25,11) 
+		Z_Nv = np.linspace(Hrms - 20,Hrms + 20,21) 
 		# Set VN scan vector
-		V_Nv = np.linspace(VN - (3850 - VN),3850,11)
-		df_GS, res_GS = d1d.raytracing_gridsearch(xx,tt,V_Nv,Z_Nv,df_MOD['median u(z)'].values,df_MOD['median z'].values,\
+		V_Nv = np.linspace(VN - (3850 - VN),3850,21)
+
+		### RUN GRID SEARCH ###
+		df_GSc, res_GSc = d1d.raytracing_gridsearch(xx,tt,V_Nv,Z_Nv,df_MOD['median u(z)'].values,df_MOD['median z'].values,\
 												  full=True)
+		
+		### SAVE COARSE MODEL SUMMARY TO DISK ###
+		if issave:
+			df_GSc.to_csv(os.path.join(OROOT,'Ice_Thickness_1DRT_v7_COARSE_GridSearch.csv'),header=True,index=False)
+
+		# Get best-fit model by provided metrices
+		df_l2rm = df_GSc[df_GSc['res L2'] == df_GSc['res L2'].min()]
+		df_urm = df_GSc[np.abs(df_GSc['res mean']) == np.abs(df_GSc['res mean']).min()]
+		df_srm = df_GSc[df_GSc['res std'] == df_GSc['res std'].min()]
+		# Get best-fit 
+		res_l2best = res_GSc[df_GSc['res L2']==df_GSc['res L2'].min()]
+		# Plot coarse model results
+		Vm = np.reshape(df_GSc['VN m/s'].values,(len(V_Nv),len(Z_Nv)))
+		Zm = np.reshape(df_GSc['Z m'].values,(len(V_Nv),len(Z_Nv)))
+		l2rm = np.reshape(df_GSc['res L2'].values,(len(V_Nv),len(Z_Nv)))
+
+		urm = np.reshape(df_GSc['res mean'].values,(len(V_Nv),len(Z_Nv)))
+
+		srm = np.reshape(df_GSc['res std'].values,(len(V_Nv),len(Z_Nv)))
+
+		if isplot:
+			plt.figure()
+			plt.subplot(311)
+			plt.plot(xx,tt,'k.',label='data')
+			plt.plot(xx,tt - res_l2best[0,:],'r.',alpha=0.1,label='best-fit coarse model')
+			plt.legend()
+			plt.xlabel('Source-Receiver Offset [m]')
+			plt.ylabel('Two-way Travel Time [sec]')
+			plt.title('Data model comparison - Coarse Resolution')
+			plt.subplot(323)
+			plt.pcolor(Vm,Zm,l2rm)
+			plt.plot(df_l2rm['VN m/s'],df_l2rm['Z m'],'r*',ms=16)
+			plt.colorbar()
+			plt.title('$|| t - \\hat{t}||_2$ [sec]')
+			plt.subplot(324)
+			plt.pcolor(Vm,Zm,np.abs(urm))
+			plt.plot(df_urm['VN m/s'],df_urm['Z m'],'c*')
+			plt.colorbar()
+			plt.title(' |mean($t - \\hat{t}$)| [sec]')
+			plt.subplot(325)
+			plt.pcolor(Vm,Zm,srm)
+			plt.plot(df_srm['VN m/s'],df_srm['Z m'],'m*')
+			plt.colorbar()
+			plt.title('std($t - \\hat{t}$) [sec]')
+			plt.subplot(326)
+			plt.pcolor(Vm,Zm,(srm - np.min(srm))/(np.max(srm) - np.min(srm)) * \
+							 (urm - np.min(urm))/(np.max(urm) - np.min(urm)) * \
+							 (l2rm - np.min(l2rm))/(np.max(l2rm) - np.min(l2rm)))
+			plt.plot(df_l2rm['VN m/s'],df_l2rm['Z m'],'r*',ms=16)
+			plt.plot(df_urm['VN m/s'],df_urm['Z m'],'c*')
+			plt.plot(df_srm['VN m/s'],df_srm['Z m'],'m*')
+			plt.title('Unit-scalar product of L-2 norm $\\mu\\sigma$')
+			plt.colorbar()
+
+
+
+	
+
+if isplot:
+	plt.show()
 
 
 		# # Conduct VN parameter sweep
