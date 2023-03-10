@@ -1,12 +1,18 @@
 """
-:module: S4_Ice_Thickness_Raytracing_Coarse.py
-:purpose: Conduct coarse grid-search analysis to determine best single glacier ice thickness and
+:module: S5_Ice_Thickness_Sensitivity_Testing.py
+:purpose: Conduct fine grid-search analysis to determine best single glacier ice thickness and
 		  glacier ice velocity pair for the layer underlying shallow structure from WHB analysis
-		  in Step 3 (S3). This site-averaged best-fit is saved to disk for use in sensitivity
-		  testing in Step 5 (S5), where velocity model uncertainties and spread-specific models
-		  are considered.
+		  in Step 3 (S3). 
+
+		  NOTE: This takes a while to run
+
+
 :auth: Nathan T. Stevens
 :email: nts5045@psu.edu | ntstevens@wisc.edu
+
+:: TODO ::
+Parallelization may be worthwhile in future versions
+
 """
 import sys
 import os
@@ -32,9 +38,6 @@ Node_xSig = 6.
 GeoRod_xSig = 1.
 # Phase pick time uncertainties in seconds
 tt_sig = 1e-3
-# Parameter sweep coefficients
-rHN = 50 	# [m] range of H_N values to scan, centered on Hrms (from Dix equation)
-dHN = 5 	# [m] increment to scan across H_N values
 
 # Runtime controls
 issave = True
@@ -113,7 +116,7 @@ for f_ in flist:
 		if dZ_N < 0.5:
 			dZ_N = 0.5
 
-		V_Nvc = np.arange(V_Nc - 4.*dV_N,V_Nc + 4.*dV_N + 0.5,0.5)
+		V_Nvc = np.arange(V_Nc - 5.*dV_N,V_Nc + 5.*dV_N + 0.5,0.5)
 		Z_Nvc = np.arange(Z_Nc - 1.1*dZ_N,Z_Nc + 1.1*dZ_N + 0.5,0.5)
 
 		print('Consisting of %d velocity x %d depth iterations'%(len(V_Nvc),len(Z_Nvc)))
