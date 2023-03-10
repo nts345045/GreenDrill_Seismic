@@ -182,6 +182,6 @@ for f_ in flist:
 
 
 			plt.show()
-
+			breakpoint()
 
 
