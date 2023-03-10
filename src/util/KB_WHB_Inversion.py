@@ -187,6 +187,11 @@ def loop_WHB_int(XX,dx=1.,abcde=np.ones(5),sig_rule='trap'):
 			xvi = xv[:i_]
 			uDi = KB79_exp_fun_deriv(X_,*abcde)
 			uavi = KB79_exp_fun_deriv(xvi,*abcde)
+			if np.nanmin(uavi) <= 0:
+				if len(uavi[uavi > 0]) > 0:
+					uavi[uavi <= 0] = np.min(uavi[uavi > 0])
+				else:
+					uavi[uavi <= 0] = 1.
 			if uDi > np.min(uavi):
 				uDi = np.min(uavi)
 			z_uai = dx*np.arccosh(uavi/uDi)

@@ -74,4 +74,11 @@ def find_nearest_leash(x0,xv,leash=10):
 	else:
 		return False
 
+
+
+# def query_gridded_clusters(X,Y,max_offset=100,grid_step=50):
+# 	Xv = np.arange(np.nanmin(X),np.nanmax(X)+grid_step,grid_step)
+# 	Yv = np.arange(np.nanmin(Y),np.nanmax(Y)+grid_step,grid_step)
+# 	Cn = 0:
+# 	for 
 		

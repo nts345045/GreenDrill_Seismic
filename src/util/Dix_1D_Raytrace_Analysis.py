@@ -15,6 +15,7 @@ import sys
 import os
 from pyrocko import cake
 from copy import deepcopy
+from scipy.optimize import curve_fit
 sys.path.append(os.path.join('..','..'))
 import util.InvTools as inv
 
@@ -109,7 +110,41 @@ def dix_VN(Vrms,Hrms,Vi,Zi):
 	return V_N
 
 
+def dix_HN(Vrms,Hrms,Vi,Zi):
+	"""
+	Calculate the thickness of the Nth layer of an N-layered velocity model
+	using estimates of th RMS velocity to a reflector and a defined shallow
+	(layers 1 to N-1) velocity structure
 
+	Manipulation of the Dix Equation that treats H_N = (t2 - t1)*V_N
+	where V_N is the lower-most velocity in Vi (i.e., Vi[Zi == max(Zi)])
+	t1 is calculated as the zero-offset two-way travel time using the 
+	shallow velocity structure to define a Vrms1
+
+	:: INPUTS ::
+	:param Vrms: [float] RMS velocity for the reflector at the bottom of layer N
+	:param Hrms: [float] RMS estimate of total column thickness from hyperbolic fitting to a reflector at the base of layer N
+	:param Vi: [array-like] shallow velocity structure velocities assumed to be interval-averaged values
+	:param Zi: [array-like] shallow velocity structure depths assumed to be bottom-interval depths
+
+	:: OUTPUT ::
+	:return H_N: [float] interval thickness for the Nth layer
+	"""
+	# Get lowermost velocity value for assumed value at depth
+	V_N = Vi[Zi == np.nanmax(Zi)]
+	if len(V_N) > 1:
+		V_N = V_N[0]
+	# Get Vrms for shallow structure
+	Vrms1 = calc_Vrms_cont(Zi,Vi)
+	# breakpoint()
+	# Calculate zero-offset twtt...
+	# ...for the shallow layer...
+	t1 = np.nanmax(Zi)/Vrms1
+	# ...and for the reflector.
+	t2 = Hrms/Vrms
+	# Main calculation
+	H_N = V_N*(t2 - t1)
+	return H_N
 
 ### WHB PROFILE RESAMPLING
 
@@ -480,7 +515,33 @@ def raytracing_gridsearch(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10,dx=10,n_ref=1):
 
 
 
-#### ODR METHODS
+#### LEAST SQUARES METHODS ####
+
+def hyperbolic_curvefit(xx,tt,tsig,p0=[400,3850],bounds=[(100,1000),(3600,4100)],method='trf',absolute_sigma=True):
+	"""
+	Wrapper for scipy.optimize.curve_fit for the hyperbolic travel-time equation
+	This method provides options to bound parameters at the expense of not including
+	uncertainties in station location (xsig) as is the case with the ODR implementation
+	(see util.Dix_1D_Raytrace_Analysis.hyperbolic_ODR()).
+	
+	*For most imputs, see scipy.optimize.curve_fit() for further explanation
+
+	:: INPUTS ::
+	:param xx: station locations in meters
+	:param tt: reflected arrival travel times in seconds
+	:param tsig: picking errors in seconds
+	:param p0: inital parameter guesses*
+	:param bounds: parameter-bounding domains*
+	:param method: solving method*
+	:param absolute_sigma: Default to True - means tsig is used in an absolute sense for pcov
+
+	:: OUTPUTS ::
+	:return popt: Best-fit parameter estiamtes
+	:return pcov: Best-fit parameter estimate covariance matrix
+
+	"""
+	popt,pcov = curve_fit(hyperbolic_tt,xx,tt,p0=p0,bounds=bounds,method=method,sigma=tsig,absolute_sigma=absolute_sigma)
+	return popt,pcov
 
 def hyperbolic_ODR(xx,tt,xsig,tsig,beta0=[550,3700],low_bnds=[10,3700],hi_bnds=[1000,4000],ifixb=None,fit_type=0):
 	"""
