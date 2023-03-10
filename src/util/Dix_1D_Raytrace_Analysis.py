@@ -16,6 +16,7 @@ import os
 from pyrocko import cake
 from copy import deepcopy
 from scipy.optimize import curve_fit
+from tqdm import tqdm
 sys.path.append(os.path.join('..','..'))
 import util.InvTools as inv
 
@@ -371,6 +372,8 @@ def raytracing_NMO(CakeMod,xx,tt,Zref,dx=10,n_ref=1):
 	:return dd_cal: Calculated ray-path lengths
 	:return theta_cal: Calculated incidence angle at the flat reflector
 
+	:: REFLECTION SCALING RESULTS IN AN ERRANT 
+
 	"""
 	# Create model station locations
 	xx_hat = np.arange(np.nanmin(xx),np.nanmax(xx) + dx, dx)
@@ -452,22 +455,87 @@ def hyperbolic_fitting(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dV=1):
 	return df_out
 
 
-def raytracing_gridsearch(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10,dx=10,n_ref=1):
+# def raytracing_gridsearch(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10,dx=10,n_ref=1):
+# 	"""
+# 	Conduct a grid-search fitting for a flat reflector in a layered medium
+# 	where the thickness and velocity of the lowermost layer are unknowns and
+# 	conduct a down-sampling of the input shallow velocity structure
+
+# 	:: INPUTS ::
+# 	:param xx: receiver locations
+# 	:param tt: reflection two-way travel times
+# 	:param Zv: vector of reflector depths to check
+# 	:param Uwhb: slowness profile from WHB analysis [in msec/m]
+# 	:param Zwhb: depth profile from WHB analysis [in m BGS]
+# 	:param Vmax: maximum velocity to consider [in m/sec]
+# 	:param dv: velocity increment for grid-search [in m/sec]
+# 	:param dx: Model station spacing for raytrace_NMO()
+# 	:param n_ref: Number of reflections for raytrace_NMO()
+
+# 	:: OUTPUT ::
+# 	:return df_out: pandas.DataFrame with summary of models and data-model residuals
+# 			Columns:
+# 				Z m: depth points
+# 				H1 m: thickness of overburden/firn layer
+# 				H2 m: guessed thickness of remaining ice column
+# 				V1rms: RMS velocity of overburden/firn layer
+# 				V2: guessed ice layer velocity
+# 				Vrms: Overall column RMS velocity
+# 				res L2: L-2 norm of data-model residuals for travel-times
+# 				res mean: Average data-model residual value
+# 				res std: standard deviation of data-model residuals
+# 				ndata: number of datapoints
+
+# 	"""
+# 	# Zt,Zb,uRMS = resample_WHB(Zwhb,Uwhb,method=method,scalar=scalar)
+# 	# breakpoint()
+
+# 	CM0 = generate_layercake_slow(Uv=Uwhb*1e-3,Zv=[0]+list(Zwhb))
+# 	CM0 = CM0.simplify()
+# 	MODS = []
+# 	Vv = np.arange(1e3/Uwhb[-1],Vmax + dv,dv)
+# 	# Iterate across velocities for lowermost layer
+# 	for V_ in Vv:
+# 		# Append a "half-space" to the shallow model
+# 		CMi = add_halfspace(CM0,V_)
+# 		# Iterate across reflector depths
+# 		for Z_ in Zv:
+# 			print('%.2e -- %.2e'%(V_,Z_))
+# 			# Calculate modeled values
+# 			# NTS: the raytracing_NMO() method has an issue - switch to a lower complexity method...
+# 			tti,ddi,thetai = raytracing_NMO(CMi,xx,tt,Z_,dx=dx,n_ref=n_ref)
+# 			# Calculate residuals
+# 			res = tt - tti
+# 			# Get stats on residuals
+# 			resL2 = np.linalg.norm(res)
+# 			res_u = np.mean(res)
+# 			res_o = np.std(res)
+# 			# Summarize estimate
+# 			line = [Z_,V_,resL2,res_u,res_o,len(xx)]
+# 			MODS.append(line)
+
+# 	df_out = pd.DataFrame(MODS,columns=['Z m','VN m/s','res L2','res mean','res std','ndata'])
+# 	return df_out
+
+
+
+def raytracing_Vsearch(xx,tt,Vv,Uwhb,Zwhb,ZN,dx=20,n_ref=0,Hhs=4000,full=False):
 	"""
-	Conduct a grid-search fitting for a flat reflector in a layered medium
-	where the thickness and velocity of the lowermost layer are unknowns and
-	conduct a down-sampling of the input shallow velocity structure
+	Conduct a parameter-search fitting for a flat reflector in a layered medium
+	where the thickness of the lowermost layer (Nth layer) is guessed 
 
 	:: INPUTS ::
-	:param xx: receiver locations
-	:param tt: reflection two-way travel times
-	:param Zv: vector of reflector depths to check
+	:param xx: (n,) receiver locations
+	:param tt: (n,) reflection two-way travel times
+	:param Zv: (m,) vector of reflector depths to check
 	:param Uwhb: slowness profile from WHB analysis [in msec/m]
 	:param Zwhb: depth profile from WHB analysis [in m BGS]
 	:param Vmax: maximum velocity to consider [in m/sec]
 	:param dv: velocity increment for grid-search [in m/sec]
 	:param dx: Model station spacing for raytrace_NMO()
 	:param n_ref: Number of reflections for raytrace_NMO()
+	:param Hhs: interval thickness of half-space (make larger than max(Zv))
+	:param full: [BOOL] include array of data-model residuals as 2nd output?
 
 	:: OUTPUT ::
 	:return df_out: pandas.DataFrame with summary of models and data-model residuals
@@ -482,36 +550,208 @@ def raytracing_gridsearch(xx,tt,Zv,Uwhb,Zwhb,Vmax=3850,dv=10,dx=10,n_ref=1):
 				res mean: Average data-model residual value
 				res std: standard deviation of data-model residuals
 				ndata: number of datapoints
-
+	:return res_block: if full==True, returns an (m,n) array of data-model residuals
 	"""
-	# Zt,Zb,uRMS = resample_WHB(Zwhb,Uwhb,method=method,scalar=scalar)
-	# breakpoint()
-
+	# Create velocity model for shallow section
 	CM0 = generate_layercake_slow(Uv=Uwhb*1e-3,Zv=[0]+list(Zwhb))
+	# Use "simplify" method on shallow model to reduce number of layers
 	CM0 = CM0.simplify()
+	# If no explicit N^th layer velocity is provided, use the bottom value from the WHB profiled
+	if full:
+		res_block = []
 	MODS = []
-	Vv = np.arange(1e3/Uwhb[-1],Vmax + dv,dv)
-	# Iterate across velocities for lowermost layer
-	for V_ in Vv:
-		# Append a "half-space" to the shallow model
-		CMi = add_halfspace(CM0,V_)
-		# Iterate across reflector depths
-		for Z_ in Zv:
-			print('%.2e -- %.2e'%(V_,Z_))
-			# Calculate modeled values
-			tti,ddi,thetai = raytracing_NMO(CMi,xx,tt,Z_,dx=dx,n_ref=n_ref)
+	# Iterate across V_N values
+	for V_ in tqdm(Vv):
+		# Append VN "half-space
+		CMi = add_halfspace(CM0,V_,Hn=Hhs)
+		# Conduct ray-tracing for specified for number of reflections
+		# NTS: the raytracing_NMO() method has an issue - switch to a lower complexity method...
+		# tti,ddi,thetai = raytracing_NMO(CMi,xx,tt,ZN,dx=dx,n_ref=n_ref)
+		# Divide max by 2 to do half-path assumption in raytrace_summary()
+		x_hat = np.arange(0,np.max(xx)/2+dx,dx)
+		# Run up-going ray-tracing from common midpoint
+		t_hat,d_hat,O_hat = raytrace_summary(CMi,x_hat,ZN)
+		# Interpolate with double reference distance and double travel-time to get twtt
+		tti = np.interp(xx,2*x_hat,2*t_hat)
+		# # Interpolate with single reference distance for incidence angle (redundant here)
+		# OOi = np.interp(xx,x_hat,O_hat)
+		# breakpoint()
+		# Calculate residuals
+		res = tt - tti
+		if full:
+			res_block.append(res)
+		# Get stats on residuals
+		resL2 = np.linalg.norm(res)
+		res_u = np.mean(res)
+		res_o = np.std(res)
+		# Summarize estimate
+		line = [ZN,V_,resL2,res_u,res_o,len(xx)]
+		MODS.append(line)
+
+	df_out = pd.DataFrame(MODS,columns=['Z m','VN m/s','res L2','res mean','res std','ndata'])
+	if full:
+		res_block = np.array(res_block)
+		return df_out, res_block
+	else:
+		return df_out
+
+
+def raytracing_zsearch(xx,tt,Zv,Uwhb,Zwhb,VN=None,dx=10,n_ref=1,Hhs=4000,full=False):
+	"""
+	Conduct a parameter-search fitting for a flat reflector in a layered medium
+	where the thickness of the lowermost layer (Nth layer) is guessed 
+
+	:: INPUTS ::
+	:param xx: (n,) receiver locations
+	:param tt: (n,) reflection two-way travel times
+	:param Zv: (m,) vector of reflector depths to check
+	:param Uwhb: slowness profile from WHB analysis [in msec/m]
+	:param Zwhb: depth profile from WHB analysis [in m BGS]
+	:param Vmax: maximum velocity to consider [in m/sec]
+	:param dv: velocity increment for grid-search [in m/sec]
+	:param dx: Model station spacing for raytrace_NMO()
+	:param n_ref: Number of reflections for raytrace_NMO()
+	:param Hhs: interval thickness of half-space (make larger than max(Zv))
+	:param full: [BOOL] include array of data-model residuals as 2nd output?
+
+	:: OUTPUT ::
+	:return df_out: pandas.DataFrame with summary of models and data-model residuals
+			Columns:
+				Z m: depth points
+				H1 m: thickness of overburden/firn layer
+				H2 m: guessed thickness of remaining ice column
+				V1rms: RMS velocity of overburden/firn layer
+				V2: guessed ice layer velocity
+				Vrms: Overall column RMS velocity
+				res L2: L-2 norm of data-model residuals for travel-times
+				res mean: Average data-model residual value
+				res std: standard deviation of data-model residuals
+				ndata: number of datapoints
+	:return res_block: if full==True, returns an (m,n) array of data-model residuals
+	"""
+	# Create velocity model for shallow section
+	CM0 = generate_layercake_slow(Uv=Uwhb*1e-3,Zv=[0]+list(Zwhb))
+	# Use "simplify" method on shallow model to reduce number of layers
+	CM0 = CM0.simplify()
+	# If no explicit N^th layer velocity is provided, use the bottom value from the WHB profiled
+	if VN is None:
+		VN = 1e3/Uwhb[-1]
+	# Append VN "half-space
+	CM0 = add_halfspace(CM0,VN,Hn=Hhs)
+	# Iterate across reflector depths
+	if full:
+		res_block = []
+	MODS = []
+	for Z_ in tqdm(Zv):
+		# Conduct ray-tracing for specified for number of reflections
+		# NTS: the raytracing_NMO() method has an issue - switch to a lower complexity method...
+		# tti,ddi,thetai = raytracing_NMO(CM0,xx,tt,Z_,dx=dx,n_ref=n_ref)
+		# Divide max by 2 to do half-path assumption in raytrace_summary()
+		x_hat = np.arange(0,np.max(xx)/2+dx,dx)
+		# Run up-going ray-tracing from common midpoint
+		t_hat,d_hat,O_hat = raytrace_summary(CM0,x_hat,Z_)
+		# Interpolate with double reference distance and double travel-time to get twtt
+		tti = np.interp(xx,2*x_hat,2*t_hat)
+		# # Interpolate with single reference distance for incidence angle (redundant here)
+		# OOi = np.interp(xx,x_hat,O_hat)
+
+		# Calculate residuals
+		res = tt - tti
+		if full:
+			res_block.append(res)
+		# Get stats on residuals
+		resL2 = np.linalg.norm(res)
+		res_u = np.mean(res)
+		res_o = np.std(res)
+		# Summarize estimate
+		line = [Z_,VN,resL2,res_u,res_o,len(xx)]
+		MODS.append(line)
+
+	df_out = pd.DataFrame(MODS,columns=['Z m','VN m/s','res L2','res mean','res std','ndata'])
+	if full:
+		res_block = np.array(res_block)
+		return df_out, res_block
+	else:
+		return df_out
+
+
+
+def raytracing_gridsearch(xx,tt,Vv,Zv,Uwhb,Zwhb,dx=20,Hhs=4000,full=False):
+	"""
+	Conduct a parameter-search fitting for a flat reflector in a layered medium
+	where the thickness of the lowermost layer (Nth layer) is guessed 
+
+	:: INPUTS ::
+	:param xx: (n,) receiver locations
+	:param tt: (n,) reflection two-way travel times
+	:param Zv: (m,) vector of reflector depths to check
+	:param Uwhb: slowness profile from WHB analysis [in msec/m]
+	:param Zwhb: depth profile from WHB analysis [in m BGS]
+	:param Vmax: maximum velocity to consider [in m/sec]
+	:param dv: velocity increment for grid-search [in m/sec]
+	:param dx: Model station spacing for raytrace_NMO()
+	:param n_ref: Number of reflections for raytrace_NMO()
+	:param Hhs: interval thickness of half-space (make larger than max(Zv))
+	:param full: [BOOL] include array of data-model residuals as 2nd output?
+
+	:: OUTPUT ::
+	:return df_out: pandas.DataFrame with summary of models and data-model residuals
+			Columns:
+				Z m: depth points
+				H1 m: thickness of overburden/firn layer
+				H2 m: guessed thickness of remaining ice column
+				V1rms: RMS velocity of overburden/firn layer
+				V2: guessed ice layer velocity
+				Vrms: Overall column RMS velocity
+				res L2: L-2 norm of data-model residuals for travel-times
+				res mean: Average data-model residual value
+				res std: standard deviation of data-model residuals
+				ndata: number of datapoints
+	:return res_block: if full==True, returns an (m,n) array of data-model residuals
+	"""
+	# Create velocity model for shallow section
+	CM0 = generate_layercake_slow(Uv=Uwhb*1e-3,Zv=[0]+list(Zwhb))
+	# Use "simplify" method on shallow model to reduce number of layers
+	CM0 = CM0.simplify()
+	# If no explicit N^th layer velocity is provided, use the bottom value from the WHB profiled
+	if full:
+		res_block = []
+	MODS = []
+	# Iterate across V_N values
+	for i_,V_ in enumerate(Vv):
+		# Append VN "half-space
+		CMi = add_halfspace(CM0,V_,Hn=Hhs)
+		for j_,Z_ in tqdm(enumerate(Zv)):
+			# Conduct ray-tracing for specified for number of reflections
+			# NTS: the raytracing_NMO() method has an issue - switch to a lower complexity method...
+			# tti,ddi,thetai = raytracing_NMO(CMi,xx,tt,ZN,dx=dx,n_ref=n_ref)
+			# Divide max by 2 to do half-path assumption in raytrace_summary()
+			x_hat = np.arange(0,np.max(xx)/2+dx,dx)
+			# Run up-going ray-tracing from common midpoint
+			t_hat,d_hat,O_hat = raytrace_summary(CMi,x_hat,Z_)
+			# Interpolate with double reference distance and double travel-time to get twtt
+			tti = np.interp(xx,2*x_hat,2*t_hat)
+			# # Interpolate with single reference distance for incidence angle (redundant here)
+			# OOi = np.interp(xx,x_hat,O_hat)
+			# breakpoint()
 			# Calculate residuals
 			res = tt - tti
+			if full:
+				res_block.append(res)
 			# Get stats on residuals
 			resL2 = np.linalg.norm(res)
 			res_u = np.mean(res)
 			res_o = np.std(res)
 			# Summarize estimate
-			line = [Z_,V_,resL2,res_u,res_o,len(xx)]
+			line = [i_,j_,Z_,V_,resL2,res_u,res_o,len(xx)]
 			MODS.append(line)
 
-	df_out = pd.DataFrame(MODS,columns=['Z m','VN m/s','res L2','res mean','res std','ndata'])
-	return df_out
+	df_out = pd.DataFrame(MODS,columns=['indZ','indV','Z m','VN m/s','res L2','res mean','res std','ndata'])
+	if full:
+		res_block = np.array(res_block)
+		return df_out, res_block
+	else:
+		return df_out
 
 
 
@@ -543,7 +783,7 @@ def hyperbolic_curvefit(xx,tt,tsig,p0=[400,3850],bounds=[(100,1000),(3600,4100)]
 	popt,pcov = curve_fit(hyperbolic_tt,xx,tt,p0=p0,bounds=bounds,method=method,sigma=tsig,absolute_sigma=absolute_sigma)
 	return popt,pcov
 
-def hyperbolic_ODR(xx,tt,xsig,tsig,beta0=[550,3700],low_bnds=[10,3700],hi_bnds=[1000,4000],ifixb=None,fit_type=0):
+def hyperbolic_ODR(xx,tt,xsig,tsig,beta0=[550,3700],ifixb=None,fit_type=0):
 	"""
 	Fit a hyperbolic NMO curve to data using Orthogonal Distance Regression
 
