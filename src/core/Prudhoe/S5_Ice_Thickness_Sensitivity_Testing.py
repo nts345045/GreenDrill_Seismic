@@ -181,7 +181,7 @@ for f_ in flist:
 			plt.colorbar()
 
 
-			plt.show()
-			breakpoint()
+plt.show()
+			# breakpoint()
 
 
