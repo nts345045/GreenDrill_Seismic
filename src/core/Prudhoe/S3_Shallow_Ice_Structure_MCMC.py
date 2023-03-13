@@ -52,8 +52,9 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 
 	:: OUTPUTS ::
 	:return output: output from ODR fitting 
-	:return uDn: [m,n_draw] array of slowness values from WHB realizations
-	:return zn: [m,n_draw] array of depth values from WHB realizations
+	:return df_uD: [m,n_draw] array of slowness values from WHB realizations
+	:return df_z: [m,n_draw] array of depth values from WHB realizations
+	:return df_x: [m,n_draw] array
 	"""
 	# Do unweighted inversion first to get first estimate of KB79 parameters
 	try:
@@ -75,7 +76,7 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 	samps = inv.norm_lhs(um_crunch,Cm_crunch,n_samps=n_draw)
 	print('LHS: %d samples drawn'%(n_draw))
 	# Iterate over LHS samples and run WHB
-	z_mods = [];u_mods = []; mod_ind = np.arange(0,n_draw)
+	z_mods = [];u_mods = []; x_int = []; mod_ind = np.arange(0,n_draw)
 	for i_ in tqdm(range(n_draw)):
 		# Create perturbed parameter holder
 		i_samp = np.zeros(5,)
@@ -87,17 +88,19 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 		i_samp[i_samp < min_sig2_mag] = min_sig2_mag
 		# breakpoint() # Check that i_samp is (5,) or (5,1) or (1,5)
 		i_zDv = kwi.loop_WHB_int(np.nanmax(xx)+1.,abcde=i_samp,sig_rule=sum_rule)
+		breakpoint()
 		z_mods.append(i_zDv['z m'])
 		u_mods.append(i_zDv['uD ms/m'])
+		x_int.append(i_zDv['X'])
 
 	# breakpoint() # Check dimensionality of z_mods and u_mods before putting in index/columns
 	df_uD = pd.DataFrame(u_mods,index=mod_ind)
 	df_z = pd.DataFrame(z_mods,index=mod_ind)
+	df_X = pd.DataFrame(x_int,index=mod_ind)
+	return output,df_uD,df_z,df_X
 
-	return output,df_uD,df_z
 
-
-def PP_WHB_write_outputs(OROOT,FN_start,output,df_uD,df_z,n_draw,full=False):
+def PP_WHB_write_outputs(OROOT,FN_start,output,df_uD,df_z,df_X,n_draw,full=False):
 	"""
 	Conduct post-processing and output file writing for MCMC simulation outputs
 
@@ -105,8 +108,9 @@ def PP_WHB_write_outputs(OROOT,FN_start,output,df_uD,df_z,n_draw,full=False):
 	:param OROOT: Output ROOT directory (where to save file(s))
 	:param FN_start: File-Name start
 	:param output: 'output' object containing summary of ODR fitting for KB'79 model
-	:param df_uD: Data Frame containing slowness models [in msec/m]
+	:param df_uD: DataFrame containing slowness models [in msec/m]
 	:param df_z: DataFrame containing depth models [in m BGS]
+	:param df_X: DataFrame containing lateral distance integration bounds for a given WHB inversion [in m]
 	:param n_draw: explicit statement of number of simulations
 	:param full: [BOOL] save all MCMC simulations?
 
@@ -128,17 +132,18 @@ def PP_WHB_write_outputs(OROOT,FN_start,output,df_uD,df_z,n_draw,full=False):
 	if full:
 		df_uD.T.to_csv(os.path.join(OROOT,'%s_uD_models_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
 		df_z.T.to_csv(os.path.join(OROOT,'%s_z_models_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
+		df_X.T.to_csv(os.path.join(OROOT,'%s_X_int_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
 	# Write ODR model for KB79 to file
 	df_beta = pd.DataFrame({'mean':output.beta,'a0':output.cov_beta[:,0],'a1':output.cov_beta[:,1],\
 							'a2':output.cov_beta[:,2],'a3':output.cov_beta[:,3],'a4':output.cov_beta[:,4]},\
 						    index=['a0','a1','a2','a3','a4'])
 	df_beta.to_csv(os.path.join(OROOT,'%s_KB79_ODR.csv'%(FN_start)),header=True,index=True)
 	# Get stats representations of each (Q25,Q50,Q75,mean,std)
-	df_MOD = pd.DataFrame({'mean u(z)':df_uD.mean(axis=0).values,'mean z':df_z.mean(axis=0).values,\
-						   'std u(z)':df_uD.std(axis=0).values,'std z':df_z.std(axis=0).values,\
-						   'median u(z)':df_uD.median(axis=0).values,'median z':df_z.median(axis=0).values,\
-						   'Q10 u(z)':df_uD.quantile(.1,axis=0).values,'Q10 z':df_z.quantile(.1,axis=0).values,\
-						   'Q90 u(z)':df_uD.quantile(.9,axis=0).values,'Q90 z':df_z.quantile(.9,axis=0).values})
+	df_MOD = pd.DataFrame({'mean u(z)':df_uD.mean(axis=0).values,'mean z':df_z.mean(axis=0).values,'mean X':df_X.mean(axis=0),\
+						   'std u(z)':df_uD.std(axis=0).values,'std z':df_z.std(axis=0).values,'std X':df_X.std(axis=0).values,\
+						   'median u(z)':df_uD.median(axis=0).values,'median z':df_z.median(axis=0).values,'median X':df_X.median(axis=0).values,\
+						   'Q10 u(z)':df_uD.quantile(.1,axis=0).values,'Q10 z':df_z.quantile(.1,axis=0).values,'Q10 X':df_X.quantile(.1,axis=0).values,\
+						   'Q90 u(z)':df_uD.quantile(.9,axis=0).values,'Q90 z':df_z.quantile(.9,axis=0).values,'Q90 X':df_X.quantile(.9,axis=0).values})
 	df_MOD.to_csv(os.path.join(OROOT,'%s_WHB_ODR_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
 	return df_MOD,df_beta
 
@@ -181,9 +186,10 @@ tsig = np.ones(tt.shape)*tt_sig
 
 
 # Get shallow structure model
-output,df_uD,df_z = run_WHB_lhs(xx,tt,xsig,tsig,n_draw=n_draw)
+output,df_uD,df_z,df_X = run_WHB_lhs(xx,tt,xsig,tsig,n_draw=n_draw)
+# breakpoint()
 # Conduct post-processing and write shallow structure model to disk
-df_MOD,df_beta = PP_WHB_write_outputs(OROOT,'Full_v7',output,df_uD,df_z,n_draw)
+df_MOD,df_beta = PP_WHB_write_outputs(OROOT,'Full_v7',output,df_uD,df_z,df_X,n_draw)
 
 plt.figure()
 plt.subplot(211)
