@@ -21,6 +21,42 @@ sys.path.append(os.path.join('..','..'))
 import util.InvTools as inv
 
 
+### OVAL / ELLIPSE RAYPATH APPROXIMATION METHODS ###
+
+def diving_raypath_oval_est(X,Z,aKB):
+	"""
+	Approximate the path-length of a diving wave as half an oval using the Ramanujan
+	approximation with turning depth and maximum offsets from WHB inversions as the 
+	semi-minor and semi-major axes of the oval.
+
+	Calculate travel-times using the Kirchner & Bentley (1979) model used as an input
+	for WHB analyses
+
+	:: INPUTS ::
+	:param X: float or array-like] Maximum source-receiver offset for a given WHB integration step
+	:param Z: [float or array-like] WHB inversion estimate of maximum turning depth
+	:param aKB: coefficients a1 -- a5 from a fitting of the KB79 model associated with the WHB analysis
+				time units dictate units of tt (generally milliseconds)
+	:: OUTPUT ::
+	:return dd: ray path-length 
+	:return tt: ray travel-time (scaled as aKB, generally milliseconds)
+
+	"""
+	# Define semi-major axis length
+	aa = X/2.
+	# Define semi-minor axis length
+	bb = Z
+	# Calculate H parameter in Ramanujan approximation
+	hh = (aa - bb)**2 / (aa + bb)**2
+	# Calculate whole perimeter approximatino
+	pp = np.pi*(aa + bb)*(1. + (3.*hh)/(10 + np.sqrt(4. - 3.*hh)))
+	# Calculate the ray-path length as the half perimeter
+	dd = pp/2
+	# Calculate travel time with the Kirchner & Bentley (1979) model
+	tt = aKB[0]*(1. - np.exp(-aKB[1]*xx)) + aKB[2]*(1. - np.exp(-aKB[3]*xx)) + aKB[4]*xx
+	return dd,tt
+
+
 ### RMS VELOCITY METHODS ###
 
 def hyperbolic_tt(xx,Htot,Vrms):
