@@ -8,10 +8,17 @@
             1) Whole data-set gather
             2) Spread gathers
             3) Shot gathers
-           Estimate ice-column structure using WHB profiles, propagating uncertainties with a
-           bootstrap approach informed by a latin hypercube sampler.
+           Estimate ice-column structure using WHB profiles, propagating uncertainties from
+           fitting data with a Kirchner & Bentley (1979) double-exponential model with
+           Monte Carlo Markov Chain simulations informed by a latin hypercube sampler.
     Outputs: Gather-specific KB79 fits and vertical ice-structure models, model summary index
 
+Data input notes:
+For full dataset KB79/WHB inversion, use all kind==1 (first break) data to get an aerial average
+representation of the shallow structure.
+
+For spread-specific data slices, further sub-set to just GeoRods to maintain linear sampling along
+the transect. Excluding Node data is a quick & dirty way to remove off-axis observations.
 
 """
 import pandas as pd
@@ -52,9 +59,9 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 
 	:: OUTPUTS ::
 	:return output: output from ODR fitting 
-	:return df_uD: [m,n_draw] array of slowness values from WHB realizations
-	:return df_z: [m,n_draw] array of depth values from WHB realizations
-	:return df_x: [m,n_draw] array
+	:return df_uD: [m,n_draw] array of slowness values from WHB realizations housed in a pandas.DataFrame
+	:return df_z: [m,n_draw] array of depth values from WHB realizations housed in a pandas.DataFrame
+	:return df_X: [m,n_draw] array of upper integration bounds for WHB inversions housed in a pandas.DataFrame
 	"""
 	# Do unweighted inversion first to get first estimate of KB79 parameters
 	try:
@@ -88,7 +95,6 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 		i_samp[i_samp < min_sig2_mag] = min_sig2_mag
 		# breakpoint() # Check that i_samp is (5,) or (5,1) or (1,5)
 		i_zDv = kwi.loop_WHB_int(np.nanmax(xx)+1.,abcde=i_samp,sig_rule=sum_rule)
-		breakpoint()
 		z_mods.append(i_zDv['z m'])
 		u_mods.append(i_zDv['uD ms/m'])
 		x_int.append(i_zDv['X'])
@@ -174,7 +180,10 @@ DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v5.csv')
 ### Load data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 # Subset diving-wave arrivals of interest
-pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&(df_picks['kind']==1)&(df_picks['SRoff m'] > 3)]
+pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&\
+			   (df_picks['kind']==1)&(df_picks['SRoff m'] > 3)]
+			   # &\
+			   # (df_picks['itype']=='GeoRod')]
 
 
 ### RUN PROCESSING ON ENSEMBLE DATA ###
@@ -189,7 +198,7 @@ tsig = np.ones(tt.shape)*tt_sig
 output,df_uD,df_z,df_X = run_WHB_lhs(xx,tt,xsig,tsig,n_draw=n_draw)
 # breakpoint()
 # Conduct post-processing and write shallow structure model to disk
-df_MOD,df_beta = PP_WHB_write_outputs(OROOT,'Full_v7',output,df_uD,df_z,df_X,n_draw)
+df_MOD,df_beta = PP_WHB_write_outputs(OROOT,'Full_v8',output,df_uD,df_z,df_X,n_draw)
 
 plt.figure()
 plt.subplot(211)
@@ -222,7 +231,9 @@ SP_Sort = df_picks['spread'].unique()
 SP_Sort.sort()
 for i_,SP_ in enumerate(SP_Sort):
 	# Subset diving-wave arrivals of interest
-	pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&(df_picks['kind']==1)&(df_picks['SRoff m'] > 3)&(df_picks['spread']==SP_)]
+	pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&\
+				   (df_picks['kind']==1)&(df_picks['SRoff m'] > 3)&(df_picks['spread']==SP_)&\
+				   (df_picks['itype']=='GeoRod')]
 
 	### RUN PROCESSING ON SPREAD DATA ###
 	ixx = pD_['SRoff m'].values
@@ -235,9 +246,9 @@ for i_,SP_ in enumerate(SP_Sort):
 	plt.plot(ixx,itt/1e3,'.',color=cid[i_],label=SP_)
 
 	# Get shallow structure model
-	outputi,df_uDi,df_zi = run_WHB_lhs(ixx,itt,ixsig,itsig,n_draw=n_draw)
+	outputi,df_uDi,df_zi,df_Xi = run_WHB_lhs(ixx,itt,ixsig,itsig,n_draw=n_draw)
 	# Conduct post-processing and write shallow structure model to disk
-	idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v7'%(SP_),outputi,df_uDi,df_zi,n_draw)
+	idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v8_GeoRod'%(SP_),outputi,df_uDi,df_zi,df_Xi,n_draw)
 
 
 	k_ = 0
