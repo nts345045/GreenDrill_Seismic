@@ -8,8 +8,10 @@
 :auth: Nathan T. Stevens
 :email: nts5045@psu.edu | ntstevens@wisc.edu
 
+:Processing Notes: 
+
 :: TODO ::
-test fits with kind==1, kind==2, and kind.isin([1,2])
+
 """
 import sys
 import os
@@ -49,7 +51,7 @@ isplot = True
 ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
 OROOT = os.path.join(ROOT,'velocity_models')
 DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v5.csv')
-UDAT = os.path.join(OROOT,'Full*_v7*LHSn100.csv')
+UDAT = os.path.join(OROOT,'Full*_v8*LHSn100.csv')
 ##########################
 
 
@@ -102,7 +104,7 @@ for f_ in flist:
 		
 		### SAVE COARSE MODEL SUMMARY TO DISK ###
 		if issave:
-			df_GSc.to_csv(os.path.join(OROOT,'Ice_Thickness_Ka1_1DRT_v7_COARSE_GridSearch.csv'),header=True,index=False)
+			df_GSc.to_csv(os.path.join(OROOT,'Ice_Thickness_Ka1_1DRT_v8_COARSE_GridSearch.csv'),header=True,index=False)
 
 		# Get best-fit model by provided metrices
 		df_l2rm = df_GSc[df_GSc['res L2'] == df_GSc['res L2'].min()]
@@ -126,7 +128,7 @@ for f_ in flist:
 			plt.plot(xx,tt - res_l2best[0,:],'r.',alpha=0.1,label='best-fit coarse model')
 			plt.legend()
 			plt.xlabel('Source-Receiver Offset [m]')
-			plt.ylabel('Two-way Travel Time [sec]')
+			plt.ylabel('Two-Way Travel Time [sec]')
 			plt.title('Data model comparison - Coarse Resolution')
 			plt.subplot(323)
 			plt.pcolor(Vm,Zm,l2rm)
