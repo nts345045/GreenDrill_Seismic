@@ -72,7 +72,7 @@ for f_ in flist:
 		# Subset full data
 		sD_ = df_picks[(df_picks['phz']=='S')&\
 					   (df_picks['SRoff m'].notna())&\
-					   (df_picks['kind'].isin([1,2]))]
+					   (df_picks['kind'].isin([1]))]
 
 		# Pull data vectors
 		xx = sD_['SRoff m'].values
@@ -102,7 +102,7 @@ for f_ in flist:
 		
 		### SAVE COARSE MODEL SUMMARY TO DISK ###
 		if issave:
-			df_GSc.to_csv(os.path.join(OROOT,'Ice_Thickness_1DRT_v7_COARSE_GridSearch.csv'),header=True,index=False)
+			df_GSc.to_csv(os.path.join(OROOT,'Ice_Thickness_Ka1_1DRT_v7_COARSE_GridSearch.csv'),header=True,index=False)
 
 		# Get best-fit model by provided metrices
 		df_l2rm = df_GSc[df_GSc['res L2'] == df_GSc['res L2'].min()]
