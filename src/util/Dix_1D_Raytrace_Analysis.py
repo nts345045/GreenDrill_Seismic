@@ -1,11 +1,10 @@
 """
 :module: Dix_Conversion.py
 :purpose: Contains methods supporting Dix Conversion for estimating
-interval velocities 
+interval velocities and ray-tracing methods for forward modeling
+travel times in 1-D layered media
 
 :: TODO ::
-for hyperbolic_fit - update to include at least the 1D ray-tracer for layered structure
-merge in RayTarcing1D.py methods
 
 
 """
@@ -369,6 +368,8 @@ def raytrace_summary(CakeMod,rr,Zsrc,Phase=cake.PhaseDef('p'),pps=10):
 	:return thetai: takeoff angle (incidence angle of reflection)
 
 	"""
+	# Have near-0 values allowed, but not 0-valued
+	rr[rr==0] += 0.001
 	distances = rr*cake.m2d
 	tt = []; dd = []; thetai = [];
 	for arr_ in CakeMod.arrivals(distances,phases=Phase,zstart=Zsrc):
@@ -632,7 +633,7 @@ def raytracing_Vsearch(xx,tt,Vv,Uwhb,Zwhb,ZN,dx=20,n_ref=0,Hhs=4000,full=False):
 		return df_out
 
 
-def raytracing_zsearch(xx,tt,Zv,Uwhb,Zwhb,VN=None,dx=10,n_ref=1,Hhs=4000,full=False):
+def raytracing_Zsearch(xx,tt,Zv,Uwhb,Zwhb,VN=None,dx=10,n_ref=1,Hhs=4000,full=False):
 	"""
 	Conduct a parameter-search fitting for a flat reflector in a layered medium
 	where the thickness of the lowermost layer (Nth layer) is guessed 
