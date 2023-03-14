@@ -36,7 +36,7 @@ GeoRod_xSig = 1.
 tt_sig = 1e-3
 # Parameter sweep coefficients
 COARSE_dZN = 30 # [m] +/- (half) range to scan over for Nth layer thickness in coarse (spread-wise) grid-searches
-COARSE_NODES= 31 # [#] grid nodes for ZN sweeps in fine grid-searches
+COARSE_NODES= 13 # [#] grid nodes for ZN sweeps in fine grid-searches
 FINE_dZN = 15 # [m] +/- (half) range to scan over for the Nth layer thickness in fine (spread-wise) grid-searches
 FINE_NODES= 31 # [#] grid nodes for ZN sweeps in fine grid-searches
 VFINE_dZN = 15 # [m] +/- (half) range to scan over for the Nth layer thickness in very fine (shot-wise) grid-searches
