@@ -84,7 +84,8 @@ for fld_ in ['mean','Q10','Q90']:
 		sD_ = df_picks[(df_picks['phz']=='S')&\
 					   (df_picks['SRoff m'].notna())&\
 					   (df_picks['kind'].isin([2]))&\
-					   (df_picks['itype']=='GeoRod')]
+					   (df_picks['itype']=='GeoRod')&\
+					   (df_picks['spread']==SP_)]
 		### Pull data vectors
 		xx = sD_['SRoff m'].values
 		tt = sD_['tt sec'].values
@@ -111,11 +112,11 @@ for fld_ in ['mean','Q10','Q90']:
 
 		Z_Nc = df_ZSc[IBEST]['Z m'].values[0]
 		# Compose fine parameter sweep vector
-		Z_Nvc = np.linspace(Z_Nc - FINE_dZN, Z_Nc + FINE_dZN,FINE_NODES)
+		Z_Nfv = np.linspace(Z_Nc - FINE_dZN, Z_Nc + FINE_dZN,FINE_NODES)
 		print('Fine Parameter Search Starting')
 
 		### RUN FINE GRID SEARCH ###
-		df_ZSf, res_ZSf = d1d.raytracing_Zsearch(xx,tt,Z_Ncv,Uwhb,Zwhb,VN=VNo,full=True)
+		df_ZSf, res_ZSf = d1d.raytracing_Zsearch(xx,tt,Z_Nfv,Uwhb,Zwhb,VN=VNo,full=True)
 		### SAVE FINE MODEL SUMMARY TO DISK ###
 		if issave:
 			df_ZSf.to_csv(os.path.join(MROOT,'S4B_Ex1_FINE_%s_Average_Firn_Model_%s_Depth_Fit.csv'%(fld_,SP_)),header=True,index=False)
