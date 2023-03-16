@@ -77,62 +77,64 @@ for fld_ in ['mean','Q10','Q90']:
 
 	######## ITERATE ACROSS SPREADS #########
 	for SP_ in ['NS01','NS02','NS03','WE01','WE02','WE03']:
-		print('Running %s (firn model: %s %s) for Z_N'%(SP_,'Site Average Structure',fld_))
-		
-		#### DATA SUBSETTING SECTION ####
-		# Subset Observations
-		sD_ = df_picks[(df_picks['phz']=='S')&\
-					   (df_picks['SRoff m'].notna())&\
-					   (df_picks['kind'].isin([2]))&\
-					   (df_picks['itype']=='GeoRod')&\
-					   (df_picks['spread']==SP_)]
-		### Pull data vectors
-		xx = sD_['SRoff m'].values
-		tt = sD_['tt sec'].values
-		# Populate instrument-type specific location uncertainties
-		xsig = Node_xSig*(sD_['itype']=='Node').values**2 + GeoRod_xSig*(sD_['itype']=='GeoRod').values**2
-		# Populate pick-time uncertainties
-		tsig = np.ones(tt.shape)*tt_sig
+		####### ITERATE ACROSS KINDS #########
+		for KD_ in [1,2]:
+			print('Running %s (firn model: %s %s) for Z_N (K:%d)'%(SP_,'Site Average Structure',fld_,KD_))
+			
+			#### DATA SUBSETTING SECTION ####
+			# Subset Observations
+			sD_ = df_picks[(df_picks['phz']=='S')&\
+						   (df_picks['SRoff m'].notna())&\
+						   (df_picks['kind']==KD_)&\
+						   (df_picks['itype']=='GeoRod')&\
+						   (df_picks['spread']==SP_)]
+			### Pull data vectors
+			xx = sD_['SRoff m'].values
+			tt = sD_['tt sec'].values
+			# Populate instrument-type specific location uncertainties
+			xsig = Node_xSig*(sD_['itype']=='Node').values**2 + GeoRod_xSig*(sD_['itype']=='GeoRod').values**2
+			# Populate pick-time uncertainties
+			tsig = np.ones(tt.shape)*tt_sig
 
-		######## GRID-SEARCH SECTION ########
+			######## GRID-SEARCH SECTION ########
 
-		# Set coarse ZN scan vector
-		Z_Ncv = np.linspace(ZNo - COARSE_dZN,ZNo + COARSE_dZN,COARSE_NODES) 
+			# Set coarse ZN scan vector
+			Z_Ncv = np.linspace(ZNo - COARSE_dZN,ZNo + COARSE_dZN,COARSE_NODES) 
 
-		print('Coarse Parameter Search Starting')
-		### RUN COARSE GRID SEARCH ###
-		df_ZSc, res_ZSc = d1d.raytracing_Zsearch(xx,tt,Z_Ncv,Uwhb,Zwhb,VN=VNo,full=True)
+			print('Coarse Parameter Search Starting')
+			### RUN COARSE GRID SEARCH ###
+			df_ZSc, res_ZSc = d1d.raytracing_Zsearch(xx,tt,Z_Ncv,Uwhb,Zwhb,VN=VNo,full=True)
 
-		### SAVE COARSE MODEL SUMMARY TO DISK ###
-		if issave:
-			df_ZSc.to_csv(os.path.join(MROOT,'S4B_Ex1_COARSE_%s_Average_Firn_Model_%s_Depth_Fit.csv'%(fld_,SP_)),header=True,index=False)
-
-		# Fetch best-fit model in the L-2 norm minimization sense
-		IBEST = df_ZSc['res L2']==df_ZSc['res L2'].min()
-
-		Z_Nc = df_ZSc[IBEST]['Z m'].values[0]
-		# Compose fine parameter sweep vector
-		Z_Nfv = np.linspace(Z_Nc - FINE_dZN, Z_Nc + FINE_dZN,FINE_NODES)
-		print('Fine Parameter Search Starting')
-
-		### RUN FINE GRID SEARCH ###
-		df_ZSf, res_ZSf = d1d.raytracing_Zsearch(xx,tt,Z_Nfv,Uwhb,Zwhb,VN=VNo,full=True)
-		### SAVE FINE MODEL SUMMARY TO DISK ###
-		if issave:
-			df_ZSf.to_csv(os.path.join(MROOT,'S4B_Ex1_FINE_%s_Average_Firn_Model_%s_Depth_Fit.csv'%(fld_,SP_)),header=True,index=False)
-
-		JBEST = df_ZSf['res L2']==df_ZSf['res L2'].min()
-		Z_Nf = df_ZSf[JBEST]['Z m'].values[0]
-
-		######## ITERATE ACROSS SHOTS #######
-		for SH_ in sD_['shot #'].unique():
-			print('Running very fine parameter sweep on spread %s, shot %s'%(SP_,SH_))
-			ixx = sD_[sD_['shot #']==SH_]['SRoff m'].values
-			itt = sD_[sD_['shot #']==SH_]['tt sec'].values
-			Z_Nfv = np.linspace(Z_Nf - VFINE_dZN, Z_Nf + VFINE_dZN,VFINE_NODES)
-			df_ZSvf, res_ZSvf = d1d.raytracing_Zsearch(ixx,itt,Z_Nfv,Uwhb,Zwhb,VN=VNo,full=True)
+			### SAVE COARSE MODEL SUMMARY TO DISK ###
 			if issave:
-				df_ZSvf.to_csv(os.path.join(MROOT,'S4B_Ex1_VFINE_%s_Average_Firn_Model_%s_shot_%d_Depth_Fit.csv'%(fld_,SP_,SH_)),header=True,index=False)
+				df_ZSc.to_csv(os.path.join(MROOT,'S4B_Ex1_COARSE_%s_Average_Firn_Model_%s_Depth_Fit_K%d.csv'%(fld_,SP_,KD_)),header=True,index=False)
+
+			# Fetch best-fit model in the L-2 norm minimization sense
+			IBEST = df_ZSc['res L2']==df_ZSc['res L2'].min()
+
+			Z_Nc = df_ZSc[IBEST]['Z m'].values[0]
+			# Compose fine parameter sweep vector
+			Z_Nfv = np.linspace(Z_Nc - FINE_dZN, Z_Nc + FINE_dZN,FINE_NODES)
+			print('Fine Parameter Search Starting')
+
+			### RUN FINE GRID SEARCH ###
+			df_ZSf, res_ZSf = d1d.raytracing_Zsearch(xx,tt,Z_Nfv,Uwhb,Zwhb,VN=VNo,full=True)
+			### SAVE FINE MODEL SUMMARY TO DISK ###
+			if issave:
+				df_ZSf.to_csv(os.path.join(MROOT,'S4B_Ex1_FINE_%s_Average_Firn_Model_%s_Depth_Fit_K%d.csv'%(fld_,SP_,KD_)),header=True,index=False)
+
+			JBEST = df_ZSf['res L2']==df_ZSf['res L2'].min()
+			Z_Nf = df_ZSf[JBEST]['Z m'].values[0]
+
+			######## ITERATE ACROSS SHOTS #######
+			for SH_ in sD_['shot #'].unique():
+				print('Running very fine parameter sweep on spread %s, shot %s'%(SP_,SH_))
+				ixx = sD_[sD_['shot #']==SH_]['SRoff m'].values
+				itt = sD_[sD_['shot #']==SH_]['tt sec'].values
+				Z_Nvfv = np.linspace(Z_Nf - VFINE_dZN, Z_Nf + VFINE_dZN,VFINE_NODES)
+				df_ZSvf, res_ZSvf = d1d.raytracing_Zsearch(ixx,itt,Z_Nvfv,Uwhb,Zwhb,VN=VNo,full=True)
+				if issave:
+					df_ZSvf.to_csv(os.path.join(MROOT,'S4B_Ex1_VFINE_%s_Average_Firn_Model_%s_shot_%d_Depth_Fit_K%d.csv'%(fld_,SP_,SH_,KD_)),header=True,index=False)
 
 
 
