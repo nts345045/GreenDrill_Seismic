@@ -34,15 +34,25 @@ Node_xSig = 6.
 GeoRod_xSig = 1.
 # Phase pick time uncertainties in seconds
 tt_sig = 1e-3
-# Parameter sweep coefficients
-COARSE_dZN = 30 # [m] +/- (half) range to scan over for Nth layer thickness in coarse (spread-wise) grid-searches
-COARSE_NODES= 13 # [#] grid nodes for ZN sweeps in fine grid-searches
-FINE_dZN = 15 # [m] +/- (half) range to scan over for the Nth layer thickness in fine (spread-wise) grid-searches
-FINE_NODES= 31 # [#] grid nodes for ZN sweeps in fine grid-searches
-VFINE_dZN = 15 # [m] +/- (half) range to scan over for the Nth layer thickness in very fine (shot-wise) grid-searches
-VFINE_NODES = 31 # [#]grid nodes for ZN sweeps in very fine grid-searches
-# Runtime controls
-issave = False
+# Saving control
+issave = True
+# Parameter sweep coefficient
+full_sweep = True
+if full_sweep:
+	COARSE_dZN = 30 # [m] +/- (half) range to scan over for Nth layer thickness in coarse (spread-wise) grid-searches
+	COARSE_NODES= 13 # [#] grid nodes for ZN sweeps in fine grid-searches
+	FINE_dZN = 15 # [m] +/- (half) range to scan over for the Nth layer thickness in fine (spread-wise) grid-searches
+	FINE_NODES= 31 # [#] grid nodes for ZN sweeps in fine grid-searches
+	VFINE_dZN = 15 # [m] +/- (half) range to scan over for the Nth layer thickness in very fine (shot-wise) grid-searches
+	VFINE_NODES = 31 # [#]grid nodes for ZN sweeps in very fine grid-searches
+else:
+	COARSE_dZN = 30 # [m] +/- (half) range to scan over for Nth layer thickness in coarse (spread-wise) grid-searches
+	COARSE_NODES= 5 # [#] grid nodes for ZN sweeps in fine grid-searches
+	FINE_dZN = 15 # [m] +/- (half) range to scan over for the Nth layer thickness in fine (spread-wise) grid-searches
+	FINE_NODES= 5 # [#] grid nodes for ZN sweeps in fine grid-searches
+	VFINE_dZN = 15 # [m] +/- (half) range to scan over for the Nth layer thickness in very fine (shot-wise) grid-searches
+	VFINE_NODES = 5 # [#]grid nodes for ZN sweeps in very fine grid-searches
+
 
 
 ######## DATA LOADING SECTION ########
@@ -127,7 +137,7 @@ for SP_ in ['NS01','NS02','NS03','WE01','WE02','WE03']:
 
 			# Get best-fit thickness estimate for given spread/perturbation iteration
 			JBEST = df_ZSf['res L2']==df_ZSf['res L2'].min()
-			Z_Nf = df_ZSf[JBEST]['Z m']
+			Z_Nf = df_ZSf[JBEST]['Z m'].values[0]
 
 			######## ITERATE ACROSS SHOTS #######
 			for SH_ in sD_['shot #'].unique():
