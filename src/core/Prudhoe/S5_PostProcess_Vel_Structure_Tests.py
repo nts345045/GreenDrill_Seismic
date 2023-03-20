@@ -86,6 +86,9 @@ GSTR1 = os.path.join(ROOT,'velocity_models','structure_experiments','S4A*.csv')
 GSTR2 = os.path.join(ROOT,'velocity_models','structure_experiments','S4B*K?.csv')
 # Phase Travel-time v Offset data
 DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v5.csv')
+# SmartSolo station locations
+
+# Handheld GPS Tracks
 
 ### DATA EXTRACTION ###
 

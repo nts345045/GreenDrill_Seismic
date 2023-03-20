@@ -10,6 +10,9 @@
     Outputs: Compiled picks with t(x) correction factors and Source-Receiver Geometry 
     		data (Compiled Picks hereafter), initial KB79 models
 
+:: TODO ::
+Add static correction elevations
+
 """
 import pandas as pd
 import numpy as np
