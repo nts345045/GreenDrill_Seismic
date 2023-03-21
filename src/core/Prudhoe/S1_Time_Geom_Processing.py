@@ -11,7 +11,7 @@
     		data (Compiled Picks hereafter), initial KB79 models
 
 :: TODO ::
-Add static correction elevations
+Add elevation estimation 
 
 """
 import pandas as pd
@@ -410,6 +410,14 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,proj_epsg='epsg:32619'):
 
 	return df_picks
 
+
+def site_elevation_modeling(df_SITE,df_TRACKS,track_pds=[(pd.Timestamp("2022-04-22T10:20+0000"),pd.Timestamp("2022-04-23T12:35+0000"))]):
+	"""
+	Generate a site elevation model using SmartSolo elevations as an absolute
+	reference frame (solutions from prior point-cloud reduction analyses) 
+	and handheld GPS tracks for relative elevations 
+
+	"""
 
 
 
