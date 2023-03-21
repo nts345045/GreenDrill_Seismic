@@ -7,6 +7,7 @@ geometries
 """
 import numpy as np
 from pyproj import Proj
+from scipy.interpolate import RBFInterpolator
 
 
 def LL2epsg(lon,lat,epsg='epsg:32619'):
@@ -75,6 +76,39 @@ def find_nearest_leash(x0,xv,leash=10):
 		return False
 
 
+
+def interp_3D_Rbf(xq,yq,zq,nx=50j,ny=50j,kwargs={}):
+	"""
+	Conveineice method for running scipy.interpolate.RBFInterpolator()
+	Conduct a Radial Basis Function interpolation for a point-cloud
+	of data with 2 independent variables.
+
+	:: INPUTS ::
+	:param xq: X-coordinate data vector
+	:param yq: Y-coordinate data vector
+	:param zq: Dependent variable data vector
+	:param nx: X-grid discretization [number of equidistant M-nodes]
+	:param ny: Y-grid discretization [number of equidistant N-nodes]
+
+	:: OUTPUT ::
+	:return YI: Interpolated dependent data [M,N]
+	:return XI: Interpolation grid [2,M,N]
+
+	"""
+	# Create independent variable array
+	xobs = np.array([np.array(yq),np.array(xq)]).T
+	# Rename/reformat dependent variable data
+	yobs = np.array(zq)
+	# Create interpolation coordinate grid
+	XI = np.mgrid[np.nanmin(yq):np.nanmax(yq):ny,np.nanmin(xq):np.nanmax(xq):nx]
+	# Reshape coordinates for input to RBFInterpolator()
+	xflat = XI.reshape(2,-1).T
+	# INTERPOLATE #
+	yfld = RBFInterpolator(xobs,yobs)(xflat)
+	# Reshape output to match grids
+	YI = yfld.reshape(XI[0,:,:].shape)
+
+	return YI,XI
 
 # def query_gridded_clusters(X,Y,max_offset=100,grid_step=50):
 # 	Xv = np.arange(np.nanmin(X),np.nanmax(X)+grid_step,grid_step)
