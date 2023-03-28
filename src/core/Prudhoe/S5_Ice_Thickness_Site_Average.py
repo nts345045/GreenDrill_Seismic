@@ -53,7 +53,7 @@ isplot = True
 ### MAP FILE STRUCTURE ###
 ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
 OROOT = os.path.join(ROOT,'velocity_models')
-DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v5.csv')
+DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v6.csv')
 UDAT = os.path.join(OROOT,'Full_v8_WHB_ODR_LHSn100.csv')
 ##########################
 

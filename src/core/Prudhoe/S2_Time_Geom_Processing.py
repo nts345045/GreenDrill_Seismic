@@ -222,7 +222,7 @@ def smfconcat(MROOT,S_meta):
 
 
 ##### CORE PROCESS #####
-def smf2df(MROOT,S_meta,df_SITE,df_SHOT,proj_epsg='epsg:32619'):
+def smf2df(MROOT,S_meta,df_SITE,df_SHOT,df_GPSc,proj_epsg='epsg:32619'):
 	"""
 	Concatenate snuffler marker files (smf) and shot geometry/metadata
 	into a single DataFrame (df) summarizing shot-reciever timings and
@@ -237,6 +237,8 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,proj_epsg='epsg:32619'):
 	:param df_SITE: dataframe containing receiver locaiton information
 	:type df_SHOT: pandas.DataFrame
 	:param df_SHOT: dataframe containing shot location information
+	:type df_GPSc: pandas.DataFrame
+	:param df_GPSc: dataframe containing GPS elevation estimates (with corrections from SmartSolos)
 	:type proj_epsg: str
 	:param proj_epsg: target referenceframe 
 
@@ -333,10 +335,12 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,proj_epsg='epsg:32619'):
 	SFID = str(S_meta['Shot #']) + '.dat'
 	Sxyz = df_SHOT[df_SHOT['Data_File']==SFID][['SHOT_Lon','SHOT_Lat','SHOT_elev']].values[0]
 	Sx,Sy = gt.LL2epsg(lon=Sxyz[0],lat=Sxyz[1],epsg=proj_epsg)
-	Sz = Sxyz[2]
-	
+	# Sz = Sxyz[2]
+	Sz = gt.simple_idw(df_GPSc['UTM19N mE'].values,df_GPSc['UTM19N mN'].values,\
+					   df_GPSc['mean(dZ)'].values,Sx,Sy,power=2)[0]
 	# Get Source-Receiver Offsets
-	SRX = []; SRY = []; SRZ = []; SRoff = []; SRaz = []; SRang = []; CMP_mE = []; CMP_mN = []
+	SRX = []; SRY = []; SRZ = []; SRoff = []; SRaz = []; SRang = []; 
+	CMP_mE = []; CMP_mN = []; CMP_mH = [];
 	for i_ in range(len(df_picks)):
 		if df_picks.iloc[i_]['type']=='Phase' and df_picks.iloc[i_]['static']:
 			iS_PICK = df_picks.iloc[i_]
@@ -346,11 +350,17 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,proj_epsg='epsg:32619'):
 			iRX,iRY = gt.LL2epsg(lon=iS_SITE['Longitude'].values[0],lat=iS_SITE['Latitude'].values[0],epsg=proj_epsg)
 			iDX = (Sx - iRX)
 			iDY = (Sy - iRY)
-			iDZ = (Sz - iS_SITE['Elevation'].values[0])
+			if iS_PICK['itype']=='Node':
+				iDZ = (Sz - iS_SITE['Elevation'].values[0])
+			else:
+				iDZ = (Sz - gt.simple_idw(df_GPSc['UTM19N mE'].values,df_GPSc['UTM19N mN'].values,\
+										  df_GPSc['mean(dZ)'].values,iRX,iRY,power=2)[0])
 			iCMPX = np.mean([Sx,iRX])
 			iCMPY = np.mean([Sy,iRY])
+			iCMPH = np.mean([Sz,Sz - iDZ])
 			CMP_mE.append(iCMPX)
 			CMP_mN.append(iCMPY)
+			CMP_mH.append(iCMPH)
 			iSRaz,iSRang = gt.cartesian_azimuth(iDX,iDY)
 			SRX.append(iDX)
 			SRY.append(iDY)
@@ -369,6 +379,9 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,proj_epsg='epsg:32619'):
 			SRang.append(iSRang)
 			CMP_mE.append(Sx + 1.5/np.sqrt(2))
 			CMP_mN.append(Sy + 1.5/np.sqrt(2))
+			CMP_mH.append(gt.simple_idw(df_GPSc['UTM19N mE'].values,df_GPSc['UTM19N mN'].values,\
+										df_GPSc['mean(dZ)'].values,Sx + 1.5/np.sqrt(2),\
+										Sy + 1.5/np.sqrt(2),power=2)[0])
 		# If there is a Geode Colocated Recorder (2kHz) pick
 		elif df_picks.iloc[i_]['sta'] == 'GCR2K':
 			Rxyz = df_SHOT[df_SHOT['Data_File']==SFID][['REC_lon','REC_lat','REC_ele']].values[0]
@@ -378,6 +391,7 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,proj_epsg='epsg:32619'):
 			iDZ = (Sz - Rxyz[2])
 			iCMPX = np.mean([Sx,iRX])
 			iCMPY = np.mean([Sy,iRY])
+			iCMPH = np.mean([Sz,Rxyz[2]])
 			iSRaz,iSRang = gt.cartesian_azimuth(iDX,iDY)
 			SRX.append(iDX)
 			SRY.append(iDY)
@@ -387,6 +401,7 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,proj_epsg='epsg:32619'):
 			SRang.append(iSRang)
 			CMP_mE.append(iCMPX)
 			CMP_mN.append(iCMPY)
+			CMP_mH.append(iCMPH)
 
 		else:
 			SRX.append(np.nan)
@@ -397,10 +412,11 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,proj_epsg='epsg:32619'):
 			SRang.append(np.nan)
 			CMP_mE.append(np.nan)
 			CMP_mN.append(np.nan)
+			CMP_mH.append(np.nan)
 	# Append to distances to picks
 	df_picks = pd.concat([df_picks,pd.DataFrame({"SRoff m":SRoff,"SR mE":SRX,"SR mN":SRY,'SR mELE':SRZ,\
 												 'az rad':SRaz,'ang rad':SRang,'CMP mE':CMP_mE,'CMP mN':CMP_mN,\
-												 "t0 ref":t0_ref},index=df_picks.index)],\
+												 'CMP mH':CMP_mH,"t0 ref":t0_ref},index=df_picks.index)],\
 						 axis=1,ignore_index=False)
 	# # Append to distances to picks
 	# df_picks = pd.concat([df_picks,pd.DataFrame({"SRoff m":SRoff,"SR mE":SRX,"SR mN":SRY,'SR mELE':SRZ,\
@@ -411,13 +427,7 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,proj_epsg='epsg:32619'):
 	return df_picks
 
 
-def site_elevation_modeling(df_SITE,df_TRACKS,track_pds=[(pd.Timestamp("2022-04-22T10:20+0000"),pd.Timestamp("2022-04-23T12:35+0000"))]):
-	"""
-	Generate a site elevation model using SmartSolo elevations as an absolute
-	reference frame (solutions from prior point-cloud reduction analyses) 
-	and handheld GPS tracks for relative elevations 
 
-	"""
 
 
 
@@ -433,7 +443,7 @@ def run_pick_concat():
 		# Get subset metadata series
 		S_i = df_META.iloc[i_,:]
 		# Conduct 
-		df_iout = smf2df(MROOT,S_i,df_SITE,df_SHOT)
+		df_iout = smf2df(MROOT,S_i,df_SITE,df_SHOT,df_GPSc)
 		df_out = pd.concat([df_out,df_iout],axis=0,ignore_index=True)
 	return df_out
 
@@ -445,6 +455,7 @@ ICSV = os.path.join(MROOT,'Amplitude_Pick_File_Metadata_v5.csv')
 
 SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd.csv')
 SITE = os.path.join(ROOT,'data','Combined_SITE_Table.csv')
+GPSc = os.path.join(ROOT,'processed_data','GPS','Prudhoe_Elevation_Corrected_GPS_Tracks.csv')
 
 ## Load METADATA ##
 df_META = pd.read_csv(ICSV)
@@ -452,9 +463,11 @@ df_META = df_META[df_META['Site']=='Prudhoe']
 ## Load SHOT Locations ##
 df_SHOT = pd.read_csv(SHOT)
 df_SHOT = df_SHOT[df_SHOT['Site']=='Prudhoe']
-## Loat SITE Locations ##
+## Load SITE Locations ##
 df_SITE = pd.read_csv(SITE,parse_dates=['Starttime','Endtime'])
 df_SITE = df_SITE[df_SITE['Network']=='PL']
+## Load GPSc Data ##
+df_GPSc = pd.read_csv(GPSc,parse_dates=['time'],index_col=[0])
 
 print('==== Running Phase Pick Concatenation ====')
 # 
@@ -517,7 +530,7 @@ if isplot:
 # Clear out spurious Event line entries, if any
 df = df[df['type']=='Phase']
 
-df.to_csv(os.path.join(OROOT,'Prudhoe_Dome','VelCorrected_Phase_Picks_O%d_idsw_v5.csv'%(fit_poly)),header=True,index=False)
+df.to_csv(os.path.join(OROOT,'Prudhoe_Dome','VelCorrected_Phase_Picks_O%d_idsw_v6.csv'%(fit_poly)),header=True,index=False)
 
 # ### PRUDHOE DOME PROCESSING ###
 
