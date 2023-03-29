@@ -1,5 +1,5 @@
 """
-:module: S4_Ice_Thickness_Raytracing_Coarse.py
+:module: S5_Ice_Thickness_Raytracing_Coarse.py
 :purpose: Conduct coarse grid-search analysis to determine best single glacier ice thickness and
 		  glacier ice velocity pair for the layer underlying shallow structure from WHB analysis
 		  in Step 3 (S3). This site-averaged best-fit is saved to disk for use in sensitivity
