@@ -20,6 +20,9 @@ representation of the shallow structure.
 For spread-specific data slices, further sub-set to just GeoRods to maintain linear sampling along
 the transect. Excluding Node data is a quick & dirty way to remove off-axis observations.
 
+:: TODO ::
+Output fitting to t0 done with curve_fit() into PP_write_outputs()
+
 """
 import pandas as pd
 import sys
@@ -39,7 +42,7 @@ import util.InvTools as inv
 
 ##### SUPPORTING METHODS #####
 
-def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_mag = 1e-12,KB79_ext=False):
+def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_mag = 1e-12,bounds=(0,np.inf),KB79_ext=False):
 	"""
 	Run a Wichert-Herglotz-Bateman inversion on supplied travel-time vs offset data 
 	considering data uncertainties and propagating uncertainties through the inversion
@@ -68,7 +71,7 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 	if not KB79_ext:
 		print('Fitting Info -- a1   a2   a3   a4   a5  ')
 		try:
-			beta1,cov_beta1 = kwi.curvefit_KB79(xx,tt)
+			beta1,cov_beta1 = kwi.curvefit_KB79(xx,tt,bounds=bounds)
 			print('(LSQ) beta0 -- %.2e %.2e %.2e %.2e %.2e'%(beta1[0],beta1[1],beta1[2],beta1[3],beta1[4]))
 
 		except RuntimeError:
@@ -78,7 +81,7 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 	else:
 		print('Fitting Info -- a1   a2   a3   a4   a5   t0')
 		try:
-			beta1,cov_beta1 = kwi.curvefit_KB79_ext(xx,tt)
+			beta1,cov_beta1 = kwi.curvefit_KB79_ext(xx,tt,bounds=bounds)
 			print('(LSQ) beta0 -- %.2e %.2e %.2e %.2e %.2e %.2e'%(beta1[0],beta1[1],beta1[2],beta1[3],beta1[4],beta1[5]))
 
 		except RuntimeError:
@@ -93,16 +96,16 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 		beta2 = output.beta
 		print('(ODR) beta1 -- %.2e %.2e %.2e %.2e %.2e'%(beta2[0],beta2[1],beta2[2],beta2[3],beta2[4]))
 	else:
-		output = kwi.ODR_KB79_ext(xx,tt,xsig,tsig,beta0=beta1,fit_type=fit_type)
+		output = kwi.ODR_KB79(xx,tt - beta1[-1],xsig,tsig,beta0=beta1[:5],fit_type=fit_type)
 		beta2 = output.beta
-		print('(ODR) beta1 -- %.2e %.2e %.2e %.2e %.2e %.2e'%(beta2[0],beta2[1],beta2[2],beta2[3],beta2[4],beta2[5]))
+		print('(ODR) beta1 -- %.2e %.2e %.2e %.2e %.2e (input tt - dt applied. dt: %.2e)'%(beta2[0],beta2[1],beta2[2],beta2[3],beta2[4],beta1[5]))		
 	# Create LHS realizations from model parameters
 	# Filter for 0-valued covariances (and exclude t0 ranks - not used in WHB)
 	# breakpoint()
-	cIND = np.abs(output.sd_beta[:5]) >= min_sig2_mag
+	cIND = np.abs(output.sd_beta) >= min_sig2_mag
 	# Create crunched mean vector and covariance matrix for LHS sampling
-	um_crunch = output.beta[:5][cIND]
-	Cm_crunch = output.cov_beta[:5,:5][cIND,:][:,cIND]
+	um_crunch = output.beta[cIND]
+	Cm_crunch = output.cov_beta[cIND,:][:,cIND]
 	# breakpoint()
 	samps = inv.norm_lhs(um_crunch,Cm_crunch,n_samps=n_draw)
 	print('LHS: %d samples drawn'%(n_draw))
@@ -114,7 +117,7 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 		# Add in perturbed values
 		i_samp[cIND] += samps[i_,:]
 		# Add in values that had ~0-valued covariances
-		i_samp[~cIND] += output.beta[:5][~cIND]
+		i_samp[~cIND] += output.beta[~cIND]
 		# Sanity check that i_samp contains no 0-valued entries
 		i_samp[i_samp < min_sig2_mag] = min_sig2_mag
 		# breakpoint() # Check that i_samp is (5,) or (5,1) or (1,5)
@@ -164,15 +167,11 @@ def PP_WHB_write_outputs(OROOT,FN_start,output,df_uD,df_z,df_X,n_draw,full=False
 		df_z.T.to_csv(os.path.join(OROOT,'%s_z_models_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
 		df_X.T.to_csv(os.path.join(OROOT,'%s_X_int_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
 	# Write ODR model for KB79 to file
-	if KB79_ext: 
-		df_beta = pd.DataFrame({'mean':output.beta,'a0':output.cov_beta[:,0],'a1':output.cov_beta[:,1],\
-						'a2':output.cov_beta[:,2],'a3':output.cov_beta[:,3],'a4':output.cov_beta[:,4],\
-						't0':output.cov_beta[:,5]},\
-					    index=['a0','a1','a2','a3','a4','t0'])
-	else:
-		df_beta = pd.DataFrame({'mean':output.beta,'a0':output.cov_beta[:,0],'a1':output.cov_beta[:,1],\
+	df_beta = pd.DataFrame({'mean':output.beta,'a0':output.cov_beta[:,0],'a1':output.cov_beta[:,1],\
 							'a2':output.cov_beta[:,2],'a3':output.cov_beta[:,3],'a4':output.cov_beta[:,4]},\
 						    index=['a0','a1','a2','a3','a4'])
+ 	# Eventually TODO - splice in the t0 and covt0t0 from the LSQ fitting
+
 	df_beta.to_csv(os.path.join(OROOT,'%s_KB79_ODR.csv'%(FN_start)),header=True,index=True)
 	# Get stats representations of each (Q25,Q50,Q75,mean,std)
 	df_MOD = pd.DataFrame({'mean u(z)':df_uD.mean(axis=0).values,'mean z':df_z.mean(axis=0).values,'mean X':df_X.mean(axis=0),\
@@ -198,7 +197,7 @@ n_draw = 100
 ms2m=1e-12
 sig_rule='trap'
 write_MCMC = False
-KB79_ext_bool = False
+KB79_ext_bool = True
 # Render plots?
 isplot = False
 
@@ -211,7 +210,7 @@ DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 # Subset diving-wave arrivals of interest
 pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&\
-			   (df_picks['kind'].isin([1,2]))&(df_picks['SRoff m'] > 0)]
+			   (df_picks['kind'].isin([1,2]))&(df_picks['SRoff m'] > 10)]
 			   # &\
 			   # (df_picks['itype']=='GeoRod')]
 
@@ -224,8 +223,13 @@ xsig = Node_xSig*(pD_['itype']=='Node').values**2 + GeoRod_xSig*(pD_['itype']=='
 tsig = np.ones(tt.shape)*tt_sig
 
 
+if KB79_ext_bool:
+	bounds = ((0,0,0,0,0,-30),(np.inf,np.inf,np.inf,np.inf,np.inf,30))
+else:
+	bounds = (0.,np.inf)
+
 # Get shallow structure model
-output,df_uD,df_z,df_X = run_WHB_lhs(xx,tt,xsig,tsig,n_draw=n_draw,KB79_ext=KB79_ext_bool)
+output,df_uD,df_z,df_X = run_WHB_lhs(xx,tt,xsig,tsig,n_draw=n_draw,KB79_ext=KB79_ext_bool,bounds=bounds)
 # breakpoint()
 # Conduct post-processing and write shallow structure model to disk
 if KB79_ext_bool:
@@ -279,7 +283,7 @@ for i_,SP_ in enumerate(SP_Sort):
 	plt.plot(ixx,itt/1e3,'.',color=cid[i_],label=SP_)
 
 	# Get shallow structure model
-	outputi,df_uDi,df_zi,df_Xi = run_WHB_lhs(ixx,itt,ixsig,itsig,n_draw=n_draw,KB79_ext=KB79_ext_bool)
+	outputi,df_uDi,df_zi,df_Xi = run_WHB_lhs(ixx,itt,ixsig,itsig,n_draw=n_draw,KB79_ext=KB79_ext_bool,bounds=bounds)
 	# Conduct post-processing and write shallow structure model to disk
 	if KB79_ext_bool:
 		idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v5_ele_MK2_ptO3_GeoRod_KB_ext'%(SP_),\
