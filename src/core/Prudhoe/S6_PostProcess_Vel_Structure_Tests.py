@@ -85,7 +85,7 @@ ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','
 GSTR1 = os.path.join(ROOT,'velocity_models','structure_experiments','S5A*.csv')
 GSTR2 = os.path.join(ROOT,'velocity_models','structure_experiments','S5B*K?.csv')
 # Phase Travel-time v Offset data
-DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v6.csv')
+DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 # SmartSolo station locations
 
 # Handheld GPS Tracks

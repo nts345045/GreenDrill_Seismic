@@ -62,10 +62,9 @@ ROOT = os.path.join('..','..','..','..','..','..','processed_data','Hybrid_Seism
 # Model Sub-Directory
 MROOT = os.path.join(ROOT,'velocity_models','structure_experiments')
 # Phase Data File
-DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v5.csv')
+DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 # Wiechert-Herglotz-Bateman Reference Model(s)
-UFMT = os.path.join(ROOT,'velocity_models','Spread_{SP}_v8_WHB_ODR_LHSn100.csv')
-
+UFMT = os.path.join(ROOT,'velocity_models','Spread_{SP}_v5_ele_MK2_ptO3_GeoRod_KB_ext_WHB_ODR_LHSn100.csv')
 
 ### Load Phase Pick Data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
@@ -81,7 +80,7 @@ for SP_ in ['NS01','NS02','NS03','WE01','WE02','WE03']:
 		for KD_ in [1,2]:
 			print('Running %s (%s firn model) for Z_N (K: %d)'%(SP_,fld_,KD_))
 			### Load relevant deep model from ensemble average
-			df_VZN = pd.read_csv(os.path.join(MROOT,'S4A_FINE_%s_Average_Firn_Model_Average_Deep_Structure.csv'%(fld_)))
+			df_VZN = pd.read_csv(os.path.join(MROOT,'S5A_FINE_%s_Average_Firn_Model_Average_Deep_Structure.csv'%(fld_)))
 
 			# Get best-fit ZN and VN values from ensemble as starting guesses
 			IBEST = df_VZN['res L2'] == df_VZN['res L2'].min()
@@ -119,7 +118,7 @@ for SP_ in ['NS01','NS02','NS03','WE01','WE02','WE03']:
 
 			### SAVE COARSE MODEL SUMMARY TO DISK ###
 			if issave:
-				df_ZSc.to_csv(os.path.join(MROOT,'S4B_Ex2_COARSE_{pert}_{sp}_Firn_Model_{sp}_Depth_Fit_K{kd}.csv'.format(pert=fld_,sp=SP_,kd=KD_)),header=True,index=False)
+				df_ZSc.to_csv(os.path.join(MROOT,'S5B_Ex2_COARSE_{pert}_{sp}_Firn_Model_{sp}_Depth_Fit_K{kd}.csv'.format(pert=fld_,sp=SP_,kd=KD_)),header=True,index=False)
 
 			# Fetch best-fit model in the L-2 norm minimization sense
 			IBEST = df_ZSc['res L2']==df_ZSc['res L2'].min()
@@ -133,7 +132,7 @@ for SP_ in ['NS01','NS02','NS03','WE01','WE02','WE03']:
 			df_ZSf, res_ZSf = d1d.raytracing_Zsearch(xx,tt,Z_Nfv,Uwhb,Zwhb,VN=VNo,full=True)
 			### SAVE FINE MODEL SUMMARY TO DISK ###
 			if issave:
-				df_ZSf.to_csv(os.path.join(MROOT,'S4B_Ex2_FINE_{pert}_{sp}_Firn_Model_{sp}_Depth_Fit_K{kd}.csv'.format(pert=fld_,sp=SP_,kd=KD_)),header=True,index=False)
+				df_ZSf.to_csv(os.path.join(MROOT,'S5B_Ex2_FINE_{pert}_{sp}_Firn_Model_{sp}_Depth_Fit_K{kd}.csv'.format(pert=fld_,sp=SP_,kd=KD_)),header=True,index=False)
 
 			# Get best-fit thickness estimate for given spread/perturbation iteration
 			JBEST = df_ZSf['res L2']==df_ZSf['res L2'].min()
@@ -147,6 +146,6 @@ for SP_ in ['NS01','NS02','NS03','WE01','WE02','WE03']:
 				Z_Nvfv = np.linspace(Z_Nf - VFINE_dZN, Z_Nf + VFINE_dZN,VFINE_NODES)
 				df_ZSvf, res_ZSvf = d1d.raytracing_Zsearch(ixx,itt,Z_Nvfv,Uwhb,Zwhb,VN=VNo,full=True)
 				if issave:
-					df_ZSvf.to_csv(os.path.join(MROOT,'S4B_Ex2_VFINE_{pert}_{sp}_Firn_Model_{sp}_shot_{sh}_Depth_Fit_K{kd}.csv'.format(pert=fld_,sp=SP_,kd=KD_,sh=SH_)),header=True,index=False)
+					df_ZSvf.to_csv(os.path.join(MROOT,'S5B_Ex2_VFINE_{pert}_{sp}_Firn_Model_{sp}_shot_{sh}_Depth_Fit_K{kd}.csv'.format(pert=fld_,sp=SP_,kd=KD_,sh=SH_)),header=True,index=False)
 
 
