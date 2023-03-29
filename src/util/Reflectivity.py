@@ -8,13 +8,15 @@
 :: TODO ::
 Migrate source amplitude estimation calculations from private into public, general use methods
 """
+import numpy as np
+import os
+import sys
+sys.path.append('.')
+import InvTools as inv
 
-
-
-
-def estimate_A0_direct(S_dir1,S_dir2,ATYPE='RMS Amp'):
+def estimate_A0_diving(S_dir1,S_dir2,ATYPE='RMS Amp'):
 	"""
-	Estimate the source-amplitude ($A_0$) using the direct-wave method
+	Estimate the source-amplitude ($A_0$) using the diving wave method
 	from Holland and Anandakrishnan (2009) [their equation 9] that uses
 	amplitudes A1 at ray-distance = s1 and A2 at ray distance = s2 = 2*s1
 
@@ -22,9 +24,9 @@ def estimate_A0_direct(S_dir1,S_dir2,ATYPE='RMS Amp'):
 
 	:: INPUTS ::
 	:param S_dir1: pandas.Series with measured amplitudes and modeled
-					ray-path length for the direct wave with ray-length s1
+					ray-path length for the diving wave with ray-length s1
 	:param S_dir2: pandas.Series with measured amplitudes and modeled
-					ray-path length for the direct wave with ray-length s2
+					ray-path length for the diving wave with ray-length s2
 	:param alpha: attenuation coefficient
 	:param ATYPE: amplitude measure to use
 
@@ -91,3 +93,26 @@ def calculate_R_direct(A0,A1,dd,alpha):
 	den = A0*gamma
 	R_theta = num/den
 	return R_theta
+
+
+
+def estimate_A0_alpha_diving(A_D,d_D):
+	"""
+	Calculate the source amplitude and path-averaged attenuation
+	using semi-log regression of diving-wave amplitudes and modeled
+	ray-paths
+	
+	:: INPUTS ::
+	:param A_D: Diving wave amplitudes [array-like]
+	:param d_D: Diving wave ray-paths [array-like]
+
+	:: OUTPUT ::
+	:return beta: ODR fitting results (see scipy.odr.ODR)
+	"""
+	yobs = np.log(A_D/d_D)
+	xobs = df_D
+	# if sigma_A_D is not None:
+
+	beta = inv.curve_fit_2Derr(inv.linfun,xobs,yobs)
+	return beta
+
