@@ -82,10 +82,10 @@ def find_bestfit(df_mod,dmeta,method='res L2'):
 # ROOT DIRECTORY
 ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
 # glob STRINGS
-GSTR1 = os.path.join(ROOT,'velocity_models','structure_experiments','S4A*.csv')
-GSTR2 = os.path.join(ROOT,'velocity_models','structure_experiments','S4B*K?.csv')
+GSTR1 = os.path.join(ROOT,'velocity_models','structure_experiments','S5A*.csv')
+GSTR2 = os.path.join(ROOT,'velocity_models','structure_experiments','S5B*K?.csv')
 # Phase Travel-time v Offset data
-DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v5.csv')
+DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v6.csv')
 # SmartSolo station locations
 
 # Handheld GPS Tracks
@@ -151,7 +151,7 @@ for i_ in range(len(df_SUM)):
 	# Calculate covariance matrix of included CMP coordinates
 	CMPcov = pD_[['CMP mE','CMP mN']].cov().values
 	# Compile output geometry line
-	line = [pD_['CMP mE'].mean(),pD_['CMP mN'].mean(),\
+	line = [pD_['CMP mE'].mean(),pD_['CMP mN'].mean(),pD_['CMP mH'].mean(),\
 			pD_['CMP mE'].min(),pD_['CMP mN'].min(),\
 			pD_['CMP mE'].max(),pD_['CMP mN'].max(),\
 			pD_['CMP mE'].quantile(.5),pD_['CMP mN'].quantile(.5),\
