@@ -31,6 +31,17 @@ def KB79_exp_fun(xx,aa,bb,cc,dd,ee):
 		 cc*(1. - np.exp(-dd*xx)) + ee*xx
 	return tt
 
+def KB79_exp_ext_fun(xx,aa,bb,cc,dd,ee,t0):
+ 	"""
+	Calculate travel times (t) for the double-exponential
+	function from Kirchner & Bentley (1979) that includes
+	a floating intercept (t0) to allow for errors unresolved
+	by travel-time corrections
+ 	"""
+ 	tt = aa*(1. - np.exp(-bb*xx)) + \
+ 		 cc*(1. - np.exp(-dd*xx)) + ee*xx + t0
+ 	return tt
+
 def KB79_odr_fun(beta,xx):
 	"""
 	KB79_exp_fun formatted for use in Orthogonal Distance Regression
@@ -40,10 +51,21 @@ def KB79_odr_fun(beta,xx):
 	tt = KB79_exp_fun(xx,*beta)
 	return tt
 
+def KB79_ext_odr_fun(beta,xx):
+	"""
+	KB79_exp_ext_fun formatted use in Orthogonal Distance Regression
+	inversion
+	"""
+	tt = KB79_exp_ext_fun(xx,*beta)
+	return tt
+
 def KB79_exp_fun_deriv(xx,aa,bb,cc,dd,ee):
 	"""
 	Calculate apparent slownesses (first spatial derivative) 
 	for the doube-exponentialfunction from Kirchner & Bentley (1979)
+
+	This also applies for the EXTENDED version of the function
+	as \\partial_x t0 = 0
 
 	:: INPUTS ::
 	:param xx: horizontal shot-receiver offset(s)
@@ -58,7 +80,6 @@ def KB79_exp_fun_deriv(xx,aa,bb,cc,dd,ee):
 	"""
 	dtdx = aa*bb*np.exp(-bb*xx) + cc*dd*np.exp(-dd*xx) + ee
 	return dtdx
-
 
 def curvefit_KB79(xx,tt,p0=[10.,0.1,1.,0.1,0.1],bounds=(0,np.inf)):
 	"""
@@ -79,6 +100,29 @@ def curvefit_KB79(xx,tt,p0=[10.,0.1,1.,0.1,0.1],bounds=(0,np.inf)):
 	"""
 	popt,pcov = spo.curve_fit(KB79_exp_fun,xx,tt,p0=p0,method='trf',bounds=bounds)
 	return popt,pcov
+
+def curvefit_KB79_ext(xx,tt,p0=[10.,0.1,1.,0.1,0.1,0],bounds=(0,np.inf)):
+	"""
+	Wrapper for a trust-region-reflective (trf) least squares fitting
+	of the Kirchner & Bentley (1979) double exponential function (KB79)
+	to travel-time/offset data. Accepts initial guesses of parameters.
+
+	EXTENDED version that allows for non-0 valued intercept
+
+	:: INPUTS ::
+	:param xx: offset data
+	:param tt: diving ray travel time data in MILLISECONDS
+	:param p0: initial parameter guesses - orders of magnitude scaled from 
+	:param bounds: parameter limits - keep this as (0,inf) to ensure estimates
+					are only positive valued.
+
+	:: OUTPUT ::
+	:return popt: parameter estimates
+	:return pcov: parameter estimate covariance matrix
+	"""
+	popt,pcov = spo.curve_fit(KB79_exp_ext_fun,xx,tt,p0=p0,method='trf',bounds=bounds)
+	return popt,pcov
+
 
 def ODR_KB79(xx,tt,xsig,tsig,beta0=np.ones(5,),fit_type=0):
 	"""
@@ -114,6 +158,40 @@ def ODR_KB79(xx,tt,xsig,tsig,beta0=np.ones(5,),fit_type=0):
 	return output
 
 
+def ODR_KB79_ext(xx,tt,xsig,tsig,beta0=[3,1,10,1e-2,0.1,0],fit_type=0):
+	"""
+	Orthogonal Distance Regression treatment to estimate parameters for the 
+	Kirchner & Bentley (1979) function - allows consideration of errors in the
+	source-receiver offsets and travel times
+
+	EXTENDED: Design matrix includes possibility of non-zero intercept
+
+	:: INPUTS ::
+	:param xx: source-receiver offsets in meters
+	:param tt: diving ray travel-times in MILLISECONDS
+	:param xsig: standard deviations of xx - data weights become 1/xsig**2
+	:param tsig: standard deviations of tt - data weights become 1/tsig**2
+	:param beta0: initial parameter estimates
+	:param fit_type: input to odr.set_job - 0 = full ODR
+											2 = LSQ
+
+	:: OUTPUT ::
+	:param output: scipy.odr.Output - output produced by a scipy ODR run. 
+					'beta' - parameter estimates
+					'cov_beta' - model covariance matrix
+
+	"""
+	# Write data and standard errors for fitting to data object
+	data = odr.RealData(xx,tt,xsig,tsig)
+	# Define model
+	model = odr.Model(KB79_ext_odr_fun)
+	# Compose Orthogonal Distance Regression 
+	_odr_ = odr.ODR(data,model,beta0=beta0)
+	# Set solution type
+	_odr_.set_job(fit_type=fit_type)
+	# Run regression
+	output = _odr_.run()
+	return output
 
 
 

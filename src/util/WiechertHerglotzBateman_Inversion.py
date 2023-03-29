@@ -89,3 +89,6 @@ def loop_WHB_int(XX,dx=1.,abcde=np.ones(5),sig_rule='trap'):
 			uD.append(uDi)
 	z_uDv = {'X':XX,'z m':z_uD,'uD sec/m':uD}
 	return z_uDv
+
+
+	
