@@ -60,21 +60,21 @@ def calc_geom(src_LLH,rcv_LLH,proj_epsg='epsg:32619',name=None):
 	"""
 	# Convert into UTM
 	Sx,Sy = gt.LL2epsg(src_LLH[1],src_LLH[0],epsg=proj_epsg)
-	Sz = src_LLH[2]
+	Sh = src_LLH[2]
 	Rx,Ry = gt.LL2epsg(rcv_LLH[1],rcv_LLH[0],epsg=proj_epsg)
-	Rz = rcv_LLH[2]
+	Rh = rcv_LLH[2]
 	# Get SR offset elements
 	dx = Rx - Sx
 	dy = Ry - Sy
-	dz = Rz - Sz
-	dD = (dx**2 + dy**2 + dz**2)**0.5
+	dh = Rh - Sh
+	dD = (dx**2 + dy**2 + dh**2)**0.5
 	# Get angles
 	az,ang = gt.cartesian_azimuth(dx,dy)
 	# Calculate midpoints
 	mpE = Sx + 0.5*dx
 	mpN = Sy + 0.5*dy
 
-	S_out = pd.Series([dD,dx,dy,dz,az,ang,Sx,Sy,Sz,Rx,Ry,Rz,mpE,mpN],\
+	S_out = pd.Series([dD,dx,dy,dz,az,ang,Sx,Sy,Sh,Rx,Ry,Rh,mpE,mpN],\
 					  ['SRoff m','SRoff mE','SRoff mN','SRoff mH','SRaz','SRang','s mE','s mN','s mH',\
 					   'r mE','r mN','r mH','CMP mE','CMP mN'],name=Name)
 	return S_out
@@ -92,7 +92,7 @@ def ODR_poly_dt_est(df_g,err_g,df_n,err_n,order=1,dfilt={'kind':1,'phz':'P'}):
 
 	"""
 	# Pull desired polynomial function for curve_fit_2Derr()
-	funs = {1:(inv.lin_fun,np.zeros(2)),2:(inv.quad_fun,np.zeros(3)),3:(inv.cube_fun,np.zeros(4))}
+	funs = {1:(inv.lin_fun,np.ones(2)),2:(inv.quad_fun,np.ones(3)),3:(inv.cube_fun,np.ones(4))}
 	fun = funs[order][0]
 	beta0 = funs[order][1]
 	# Conduct additional filtering on data for DT calculation
@@ -249,6 +249,7 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,df_GPSc,proj_epsg='epsg:32619'):
 	"""
 	PATH =os.path.join(MROOT,S_meta['Site'],S_meta['Spread'],'shot',str(S_meta['Shot #'])) 
 	SMF = os.path.join(PATH,S_meta['Pick File'])
+	df_SN = df_SITE[df_SITE['Channel']=='GNZ']
 	markers = pm.load_markers(SMF)
 	# wflist = glob(os.path.join(PATH,'*.mseed'))
 	# Find event markers and phase markers
@@ -333,70 +334,80 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,df_GPSc,proj_epsg='epsg:32619'):
 	# Get Source Location
 	NET = plist[0].get_nslc_ids()[0][0]
 	SFID = str(S_meta['Shot #']) + '.dat'
-	Sxyz = df_SHOT[df_SHOT['Data_File']==SFID][['SHOT_Lon','SHOT_Lat','SHOT_elev']].values[0]
-	Sx,Sy = gt.LL2epsg(lon=Sxyz[0],lat=Sxyz[1],epsg=proj_epsg)
-	# Sz = Sxyz[2]
-	Sz = gt.simple_idw(df_GPSc['UTM19N mE'].values,df_GPSc['UTM19N mN'].values,\
-					   df_GPSc['mean(dZ)'].values,Sx,Sy,power=2)[0]
+	Sxyhz = df_SHOT[df_SHOT['Data_File']==SFID][['SHOT_Lon','SHOT_Lat','SHOT_elev','SHOT_dep_m']].values[0]
+	Sx,Sy = gt.LL2epsg(lon=Sxyhz[0],lat=Sxyhz[1],epsg=proj_epsg)
+	Sh = Sxyhz[2]
+	# Get Shot Depth
+	Sz = Sxyhz[3]
+	# For NaN valued entries, assume average depth for whole site as shot depth
+	if ~np.isfinite(Sz):
+		Sz = np.nanmean(df_SHOT['SHOT_dep_m'].values)
+	# Place shot at depth
+	Sh -= Sz
 	# Get Source-Receiver Offsets
-	SRX = []; SRY = []; SRZ = []; SRoff = []; SRaz = []; SRang = []; 
+	SRX = []; SRY = []; SRH = []; SRoff = []; SRaz = []; SRang = []; 
 	CMP_mE = []; CMP_mN = []; CMP_mH = [];
 	for i_ in range(len(df_picks)):
 		if df_picks.iloc[i_]['type']=='Phase' and df_picks.iloc[i_]['static']:
+			# Get specific pick entry
 			iS_PICK = df_picks.iloc[i_]
+			# Filter for relevant station
 			iS_SITE = df_SITE[(df_SITE['Network']==iS_PICK['net']) &\
 							   (df_SITE['Station'] == iS_PICK['sta']) &\
 							   (df_SITE['Channel'] == iS_PICK['chan'])]
+			# Get receiver location in UTM
 			iRX,iRY = gt.LL2epsg(lon=iS_SITE['Longitude'].values[0],lat=iS_SITE['Latitude'].values[0],epsg=proj_epsg)
+			# Get source-receiver offset vector elements
 			iDX = (Sx - iRX)
 			iDY = (Sy - iRY)
-			if iS_PICK['itype']=='Node':
-				iDZ = (Sz - iS_SITE['Elevation'].values[0])
-			else:
-				iDZ = (Sz - gt.simple_idw(df_GPSc['UTM19N mE'].values,df_GPSc['UTM19N mN'].values,\
-										  df_GPSc['mean(dZ)'].values,iRX,iRY,power=2)[0])
+			iDH = (Sh - iS_SITE['Elevation'].values[0])
+			SRX.append(iDX)
+			SRY.append(iDY)
+			SRH.append(iDH)
+			SRoff.append(np.sqrt(iDX**2 + iDY**2 + iDH**2))
+			# Get Common Mid Point Coordinates
 			iCMPX = np.mean([Sx,iRX])
 			iCMPY = np.mean([Sy,iRY])
-			iCMPH = np.mean([Sz,Sz - iDZ])
+			iCMPH = np.mean([Sh,Sh - iDH])
 			CMP_mE.append(iCMPX)
 			CMP_mN.append(iCMPY)
 			CMP_mH.append(iCMPH)
+			# Get Source-Receiver Azimuth (for human-readable) and rotation angle (for calculation)
 			iSRaz,iSRang = gt.cartesian_azimuth(iDX,iDY)
-			SRX.append(iDX)
-			SRY.append(iDY)
-			SRZ.append(iDZ)
-			SRoff.append(np.sqrt(iDX**2 + iDY**2 + iDZ**2))
 			SRaz.append(iSRaz)
 			SRang.append(iSRang)
-
+		# If pick is on moving shot-co-located receivers
 		elif df_picks.iloc[i_]['sta'] in ['SR4K','SR2K']:
+			# Set offsets at a standard stand-off of 3 m laterally, and shot depth vertically
 			SRX.append(3/np.sqrt(2))
 			SRY.append(3/np.sqrt(2))
-			SRZ.append(0)
+			SRH.append(Sh)
 			SRoff.append(3)
 			iSRaz,iSRang = gt.cartesian_azimuth(1,1)
 			SRaz.append(iSRaz)
 			SRang.append(iSRang)
 			CMP_mE.append(Sx + 1.5/np.sqrt(2))
 			CMP_mN.append(Sy + 1.5/np.sqrt(2))
-			CMP_mH.append(gt.simple_idw(df_GPSc['UTM19N mE'].values,df_GPSc['UTM19N mN'].values,\
-										df_GPSc['mean(dZ)'].values,Sx + 1.5/np.sqrt(2),\
+			# In this one case, use IDW to fill in 
+			CMP_mH.append(gt.simple_idw(df_SN['UTM19N Easting'].values,df_SN['UTM19N Northing'].values,\
+					  					df_SN['Elevation'].values,Sx + 1.5/np.sqrt(2),\
 										Sy + 1.5/np.sqrt(2),power=2)[0])
+
 		# If there is a Geode Colocated Recorder (2kHz) pick
 		elif df_picks.iloc[i_]['sta'] == 'GCR2K':
 			Rxyz = df_SHOT[df_SHOT['Data_File']==SFID][['REC_lon','REC_lat','REC_ele']].values[0]
 			iRX,iRY = gt.LL2epsg(lon=Rxyz[0],lat=Rxyz[1],epsg=proj_epsg)
 			iDX = (Sx - iRX)
 			iDY = (Sy - iRY)
-			iDZ = (Sz - Rxyz[2])
+			iDH = (Sh - Rxyz[2])
 			iCMPX = np.mean([Sx,iRX])
 			iCMPY = np.mean([Sy,iRY])
-			iCMPH = np.mean([Sz,Rxyz[2]])
+			iCMPH = np.mean([Sh,Rxyz[2]])
 			iSRaz,iSRang = gt.cartesian_azimuth(iDX,iDY)
 			SRX.append(iDX)
 			SRY.append(iDY)
-			SRZ.append(iDZ)
-			SRoff.append(np.sqrt(iDX**2 + iDY**2 + iDZ**2))
+			SRH.append(iDH)
+			SRoff.append(np.sqrt(iDX**2 + iDY**2 + iDH**2))
 			SRaz.append(iSRaz)
 			SRang.append(iSRang)
 			CMP_mE.append(iCMPX)
@@ -406,7 +417,7 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,df_GPSc,proj_epsg='epsg:32619'):
 		else:
 			SRX.append(np.nan)
 			SRY.append(np.nan)
-			SRZ.append(np.nan)
+			SRH.append(np.nan)
 			SRoff.append(np.nan)
 			SRaz.append(np.nan)
 			SRang.append(np.nan)
@@ -414,12 +425,12 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,df_GPSc,proj_epsg='epsg:32619'):
 			CMP_mN.append(np.nan)
 			CMP_mH.append(np.nan)
 	# Append to distances to picks
-	df_picks = pd.concat([df_picks,pd.DataFrame({"SRoff m":SRoff,"SR mE":SRX,"SR mN":SRY,'SR mELE':SRZ,\
+	df_picks = pd.concat([df_picks,pd.DataFrame({"SRoff m":SRoff,"SR mE":SRX,"SR mN":SRY,'SR mELE':SRH,\
 												 'az rad':SRaz,'ang rad':SRang,'CMP mE':CMP_mE,'CMP mN':CMP_mN,\
 												 'CMP mH':CMP_mH,"t0 ref":t0_ref},index=df_picks.index)],\
 						 axis=1,ignore_index=False)
 	# # Append to distances to picks
-	# df_picks = pd.concat([df_picks,pd.DataFrame({"SRoff m":SRoff,"SR mE":SRX,"SR mN":SRY,'SR mELE':SRZ,\
+	# df_picks = pd.concat([df_picks,pd.DataFrame({"SRoff m":SRoff,"SR mE":SRX,"SR mN":SRY,'SR mELE':SRH,\
 	# 											 'az rad':SRaz,'ang rad':SRang,'CMP mE':CMP_mE,'CMP mN':CMP_mN,\
 	# 											 "tt sec":tts,"t0 ref":t0_ref},index=df_picks.index)],\
 	# 					 axis=1,ignore_index=False)
@@ -453,8 +464,10 @@ MROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','Corrected_t0')
 OROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0')
 ICSV = os.path.join(MROOT,'Amplitude_Pick_File_Metadata_v5.csv')
 
-SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd.csv')
-SITE = os.path.join(ROOT,'data','Combined_SITE_Table.csv')
+# SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd.csv')
+SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd_ELE_corr.csv')
+# SITE = os.path.join(ROOT,'data','Combined_SITE_Table.csv')
+SITE = os.path.join(ROOT,'processed_data','Combined_SITE_Table_ELE_corr.csv')
 GPSc = os.path.join(ROOT,'processed_data','GPS','Prudhoe_Elevation_Corrected_GPS_Tracks.csv')
 
 ## Load METADATA ##
@@ -475,7 +488,7 @@ df = run_pick_concat()
 pick_err = 2e-3
 gx_err = 1.
 nx_err = 2.
-fit_poly = 2
+fit_poly = 3
 isplot = True
 # breakpoint()
 # Define Reference Stations for Each Shot -- TODO: Some 
@@ -530,7 +543,7 @@ if isplot:
 # Clear out spurious Event line entries, if any
 df = df[df['type']=='Phase']
 
-df.to_csv(os.path.join(OROOT,'Prudhoe_Dome','VelCorrected_Phase_Picks_O%d_idsw_v6.csv'%(fit_poly)),header=True,index=False)
+df.to_csv(os.path.join(OROOT,'Prudhoe_Dome','Corrected_Phase_Picks_v5_ele_MK2_pfO%d.csv'%(fit_poly)),header=True,index=False)
 
 # ### PRUDHOE DOME PROCESSING ###
 

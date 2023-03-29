@@ -66,9 +66,12 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 	# Do unweighted inversion first to get first estimate of KB79 parameters
 	try:
 		beta1,cov_beta1 = kwi.curvefit_KB79(xx,tt)
+		print('(LSQ) beta0 -- %.2e %.2e %.2e %.2e %.2e'%(beta1[0],beta1[1],beta1[2],beta1[3],beta1[4]))
+
 	except RuntimeError:
-		breakpoint()
-	print('(LSQ) beta0 -- %.2e %.2e %.2e %.2e %.2e'%(beta1[0],beta1[1],beta1[2],beta1[3],beta1[4]))
+		beta1 = np.array([1,10,30,0.01,0.1])
+		print('(LSQ) failure -- defaulting -- %.2e %.2e %.2e %.2e %.2e'%(beta1[0],beta1[1],beta1[2],beta1[3],beta1[4]))
+
 	# Do inverse-variance-weighted Orthogonal Distance Regression estimate for KB79
 	output = kwi.ODR_KB79(xx,tt,xsig,tsig,beta0=beta1,fit_type=fit_type)
 	beta2 = output.beta
@@ -175,13 +178,13 @@ isplot = False
 ### MAP DATA ###
 ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
 OROOT = os.path.join(ROOT,'velocity_models')
-DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v6.csv')
+DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 
 ### Load data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 # Subset diving-wave arrivals of interest
 pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&\
-			   (df_picks['kind']==1)&(df_picks['SRoff m'] > 3)]
+			   (df_picks['kind']==1)&(df_picks['SRoff m'] > 50)]
 			   # &\
 			   # (df_picks['itype']=='GeoRod')]
 
@@ -198,7 +201,7 @@ tsig = np.ones(tt.shape)*tt_sig
 output,df_uD,df_z,df_X = run_WHB_lhs(xx,tt,xsig,tsig,n_draw=n_draw)
 # breakpoint()
 # Conduct post-processing and write shallow structure model to disk
-df_MOD,df_beta = PP_WHB_write_outputs(OROOT,'Full_v8',output,df_uD,df_z,df_X,n_draw)
+df_MOD,df_beta = PP_WHB_write_outputs(OROOT,'Full_v6_ed8',output,df_uD,df_z,df_X,n_draw)
 
 plt.figure()
 plt.subplot(211)
@@ -248,7 +251,7 @@ for i_,SP_ in enumerate(SP_Sort):
 	# Get shallow structure model
 	outputi,df_uDi,df_zi,df_Xi = run_WHB_lhs(ixx,itt,ixsig,itsig,n_draw=n_draw)
 	# Conduct post-processing and write shallow structure model to disk
-	idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v8_GeoRod'%(SP_),outputi,df_uDi,df_zi,df_Xi,n_draw)
+	idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v6_ed8_GeoRod'%(SP_),outputi,df_uDi,df_zi,df_Xi,n_draw)
 
 
 	k_ = 0
