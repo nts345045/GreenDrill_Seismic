@@ -52,12 +52,19 @@ ROOT = os.path.join('..','..','..','..','..','..','processed_data','Hybrid_Seism
 # Model Sub-Directory
 MROOT = os.path.join(ROOT,'velocity_models','structure_experiments')
 # Phase Data File
-DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v5.csv')
+DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 # Wiechert-Herglotz-Bateman Reference Model(s)
-UDAT = os.path.join(ROOT,'velocity_models','Full_v8_WHB_ODR_LHSn100.csv')
+UDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_KB_ext_WHB_ODR_LHSn100.csv')
+# Reference KB79 Model
+CDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_KB_ext_KB79_ODR.csv')
 
 ### Load Phase Pick Data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
+
+### Load KB79 Model
+df_cov = pd.read_csv(CDAT)
+
+KB_DT = df_cov['mean'].values[-1]
 
 ### Load WHB Model
 df_MOD = pd.read_csv(UDAT)
@@ -68,7 +75,7 @@ sD_ = df_picks[(df_picks['phz']=='S')&\
 
 ### Pull data vectors
 xx = sD_['SRoff m'].values
-tt = sD_['tt sec'].values
+tt = sD_['tt sec'].values - KB_DT
 # Populate instrument-type specific location uncertainties
 xsig = Node_xSig*(sD_['itype']=='Node').values**2 + GeoRod_xSig*(sD_['itype']=='GeoRod').values**2
 # Populate pick-time uncertainties
@@ -98,7 +105,7 @@ for fld_ in ['mean','Q10','Q90']:
 
 	### SAVE COARSE MODEL SUMMARY TO DISK ###
 	if issave:
-		df_GSc.to_csv(os.path.join(MROOT,'S4A_COARSE_%s_Average_Firn_Model_Average_Deep_Structure.csv'%(fld_)),header=True,index=False)
+		df_GSc.to_csv(os.path.join(MROOT,'S5A_COARSE_%s_Average_Firn_Model_Average_Deep_Structure.csv'%(fld_)),header=True,index=False)
 
 	# Fetch best-fit model in the L-2 norm minimization sense
 	IBEST = df_GSc['res L2']==df_GSc['res L2'].min()
@@ -114,7 +121,7 @@ for fld_ in ['mean','Q10','Q90']:
 			
 	### SAVE FINE MODEL SUMMARY TO DISK ###
 	if issave:
-		df_GSf.to_csv(os.path.join(MROOT,'S4A_FINE_%s_Average_Firn_Model_Average_Deep_Structure.csv'%(fld_)),header=True,index=False)
+		df_GSf.to_csv(os.path.join(MROOT,'S5A_FINE_%s_Average_Firn_Model_Average_Deep_Structure.csv'%(fld_)),header=True,index=False)
 
 
 
