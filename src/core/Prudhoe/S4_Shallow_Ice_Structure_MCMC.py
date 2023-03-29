@@ -75,7 +75,8 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 			print('(LSQ) beta0 -- %.2e %.2e %.2e %.2e %.2e'%(beta1[0],beta1[1],beta1[2],beta1[3],beta1[4]))
 
 		except RuntimeError:
-			beta1 = np.array([1,10,30,0.01,0.1])
+			beta1 = np.array([10,30,30,0.01,0.1])
+			cov_beta1 = np.zeros((5,5))
 			print('(LSQ) failure -- defaulting -- %.2e %.2e %.2e %.2e %.2e'%(beta1[0],beta1[1],beta1[2],beta1[3],beta1[4]))
 
 	else:
@@ -85,7 +86,8 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 			print('(LSQ) beta0 -- %.2e %.2e %.2e %.2e %.2e %.2e'%(beta1[0],beta1[1],beta1[2],beta1[3],beta1[4],beta1[5]))
 
 		except RuntimeError:
-			beta1 = np.array([1,10,30,0.01,0.1,0])
+			beta1 = np.array([10,30,30,0.01,0.1,0])
+			cov_beta1 = np.zeros((6,6))
 			print('(LSQ) failure -- defaulting -- %.2e %.2e %.2e %.2e %.2e %.2e'%(beta1[0],beta1[1],beta1[2],beta1[3],beta1[4],beta1[5]))
 
 
@@ -130,10 +132,14 @@ def run_WHB_lhs(xx,tt,xsig,tsig,fit_type=0,sum_rule='trap',n_draw=100,min_sig2_m
 	df_uD = pd.DataFrame(u_mods,index=mod_ind)
 	df_z = pd.DataFrame(z_mods,index=mod_ind)
 	df_X = pd.DataFrame(x_int,index=mod_ind)
-	return output,df_uD,df_z,df_X
+	if KB79_ext:
+		out = {'output':output,'dt':beta1[-1],'covdtdt':cov_beta1[-1,-1]}
+	else:
+		out = output
+	return out,df_uD,df_z,df_X
 
 
-def PP_WHB_write_outputs(OROOT,FN_start,output,df_uD,df_z,df_X,n_draw,full=False,KB79_ext=False):
+def PP_WHB_write_outputs(OROOT,FN_start,output,df_uD,df_z,df_X,n_draw,dt=0,covdtdt=0,full=False,KB79_ext=False):
 	"""
 	Conduct post-processing and output file writing for MCMC simulation outputs
 
@@ -166,11 +172,20 @@ def PP_WHB_write_outputs(OROOT,FN_start,output,df_uD,df_z,df_X,n_draw,full=False
 		df_uD.T.to_csv(os.path.join(OROOT,'%s_uD_models_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
 		df_z.T.to_csv(os.path.join(OROOT,'%s_z_models_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
 		df_X.T.to_csv(os.path.join(OROOT,'%s_X_int_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
-	# Write ODR model for KB79 to file
-	df_beta = pd.DataFrame({'mean':output.beta,'a0':output.cov_beta[:,0],'a1':output.cov_beta[:,1],\
-							'a2':output.cov_beta[:,2],'a3':output.cov_beta[:,3],'a4':output.cov_beta[:,4]},\
-						    index=['a0','a1','a2','a3','a4'])
- 	# Eventually TODO - splice in the t0 and covt0t0 from the LSQ fitting
+ 	# Splice in the t0 and covt0t0 from the LSQ fitting
+	if KB79_ext:
+		# Write ODR model for KB79 to file
+		df_beta = pd.DataFrame({'mean':np.r_[output.beta,dt],'a0':np.r_[output.cov_beta[:,0],0],\
+								'a1':np.r_[output.cov_beta[:,1],0],'a2':np.r_[output.cov_beta[:,2],0],\
+								'a3':np.r_[output.cov_beta[:,3],0],'a4':np.r_[output.cov_beta[:,4],0],\
+								'dt':np.r_[np.zeros(5,),covdtdt]},\
+							    index=['a0','a1','a2','a3','a4','t0'])
+	else:
+		# Write ODR model for KB79 to file
+		df_beta = pd.DataFrame({'mean':output.beta,'a0':output.cov_beta[:,0],'a1':output.cov_beta[:,1],\
+								'a2':output.cov_beta[:,2],'a3':output.cov_beta[:,3],'a4':output.cov_beta[:,4]},\
+							    index=['a0','a1','a2','a3','a4'])
+
 
 	df_beta.to_csv(os.path.join(OROOT,'%s_KB79_ODR.csv'%(FN_start)),header=True,index=True)
 	# Get stats representations of each (Q25,Q50,Q75,mean,std)
@@ -233,13 +248,16 @@ output,df_uD,df_z,df_X = run_WHB_lhs(xx,tt,xsig,tsig,n_draw=n_draw,KB79_ext=KB79
 # breakpoint()
 # Conduct post-processing and write shallow structure model to disk
 if KB79_ext_bool:
-	df_MOD,df_beta = PP_WHB_write_outputs(OROOT,'Full_v5_ele_MK2_ptO3_KB_ext',output,df_uD,df_z,df_X,n_draw,KB79_ext=KB79_ext_bool)
+	df_MOD,df_beta = PP_WHB_write_outputs(OROOT,'Full_v5_ele_MK2_ptO3_KB_ext',output['output'],df_uD,df_z,df_X,n_draw,\
+										  KB79_ext=KB79_ext_bool,dt=output['dt'],covdtdt=output['covdtdt'])
+	plot_dt_msec = df_beta['mean'].values[-1]
 else:
 	df_MOD,df_beta = PP_WHB_write_outputs(OROOT,'Full_v5_ele_MK2_ptO3',output,df_uD,df_z,df_X,n_draw,KB79_ext=KB79_ext_bool)
+	plot_dt_msec = 0
 
 plt.figure()
 plt.subplot(211)
-plt.plot(xx,tt/1e3,'k.',label='Full')
+plt.plot(xx,(tt - plot_dt_msec)/1e3,'k.',label='Full')
 plt.xlabel('Source receiver offset [m]')
 plt.ylabel('Travel time [sec]')
 
@@ -287,7 +305,8 @@ for i_,SP_ in enumerate(SP_Sort):
 	# Conduct post-processing and write shallow structure model to disk
 	if KB79_ext_bool:
 		idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v5_ele_MK2_ptO3_GeoRod_KB_ext'%(SP_),\
-												outputi,df_uDi,df_zi,df_Xi,n_draw,KB79_ext=KB79_ext_bool)
+												outputi['output'],df_uDi,df_zi,df_Xi,n_draw,KB79_ext=KB79_ext_bool,\
+										 		dt=outputi['dt'],covdtdt=outputi['covdtdt'])
 	else:
 		idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v5_ele_MK2_ptO3_GeoRod'%(SP_),\
 												outputi,df_uDi,df_zi,df_Xi,n_draw,KB79_ext=KB79_ext_bool)
