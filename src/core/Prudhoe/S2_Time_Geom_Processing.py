@@ -490,11 +490,15 @@ gx_err = 1.
 nx_err = 2.
 fit_poly = 3
 isplot = True
-# breakpoint()
-# Define Reference Stations for Each Shot -- TODO: Some 
+
+### SURVEY SPECIFIC PROCESSING ARGUMENTS ###
+# Define Reference Stations for Each Shot
 REF_NODES = {'NS01':['GCR2K','PR12','PR04'],'NS02':['GCR2K','PR04'],\
 			 'NS03':['GCR2K','PR04','PR01'],'WE01':['PR04','PR03'],\
 			 'WE02':['GCR2K','PR03'],'WE03':['GCR2K','PR03','PR10']}
+
+# Zero-offset shots to process only using channels 25Z-48Z 
+ZO_TROUBLE_LIST = [307,319,352,396]
 
 df_tc = pd.DataFrame()
 # Need to correct the below to filter for kind = 1 and phz = P
@@ -502,28 +506,89 @@ for SP_,SH_ in df[['spread','shot #']].value_counts().index:
 	print('Processing %s %s'%(SP_,SH_))
 	# Subset phase DataFrame
 	df_i = df[(df['spread']==SP_)&(df['shot #']==SH_)]
+	# Get Shot Index in Sequence
+	sp_shot_ind = df_SHOT[df_SHOT['Data_File']==str(SH_)+'.dat']['Shot_No'].values[0]
 	# Subset GeoRod Entries
 	df_ig = df_i[df_i['itype']=='GeoRod']
-	# Create dataframe with GeoRod errors
-	err_g = pd.DataFrame({'xsig':np.ones(len(df_ig),)*gx_err,'tsig':np.ones(len(df_ig),)*pick_err})
 	# Subset Node Entries
 	df_in = df_i[(df_i['itype']=='Node')&(df_i['sta'].isin(REF_NODES[SP_]))]
 	# Create dataframe with Node errors
 	err_n = pd.DataFrame({'xsig':np.ones(len(df_in),)*nx_err,'tsig':np.ones(len(df_in),)*pick_err})
-	# Conduct time corrections
-	df_tcorr = ODR_poly_dt_est(df_ig,err_g,df_in,err_n,order=fit_poly)
-	# Vertically concat
-	df_tc = pd.concat([df_tc,df_tcorr],axis=0,ignore_index=False)
+
+	# if this shot is in the middle of the spread, do separate corrections for each side of the array
+	# This counteracts blow-up of small distance uncertainties in sorting out timing corrections
+	if sp_shot_ind == 1 and SH_ not in ZO_TROUBLE_LIST:
+		for P_ in range(2):
+			# Create station sublists
+			if P_ == 0:
+				sta_list = [x for x in df_ig['chan'] if int(x[:2]) <= 24]
+			else:
+				sta_list = [x for x in df_ig['chan'] if int(x[:2]) > 24]
+			# Apply filter
+			df_igP = df_ig[df_ig['chan'].isin(sta_list)]
+			# Proceed with processing
+			# Create dataframe with GeoRod errors
+			err_gP = pd.DataFrame({'xsig':np.ones(len(df_igP),)*gx_err,'tsig':np.ones(len(df_igP),)*pick_err})
+			# Conduct time corrections
+			df_tcorr = ODR_poly_dt_est(df_igP,err_gP,df_in,err_n,order=fit_poly)
+			# Vertically concat
+			df_tc = pd.concat([df_tc,df_tcorr],axis=0,ignore_index=False)
+			if isplot:
+				if P_ == 0:
+					plt.figure()
+				# Plot time-corrected epochs
+				plt.plot(df_i[df_i.index.isin(df_tcorr.index)]['SRoff m'].values,df_tcorr['epoch corr'].values,'s',\
+						 alpha=0.2,label='Corrected Data %d'%(P_))
+		if isplot:
+			# Plot original epochs
+			plt.plot(df_i['SRoff m'].values,df_i['epoch'].values,'o',label='Uncorrected Data')
+			plt.plot(df_in['SRoff m'].values,df_in['epoch'].values,'.',label='Reference Picks')
+			plt.title('%s %s'%(SP_,SH_))
+			plt.legend()
+	# Just work with the channels 25Z-48Z for correction
+	elif sp_shot_ind == 1 and SH_ in ZO_TROUBLE_LIST:
+		sta_list = [x for x in df_ig['chan'] if int(x[:2]) > 24]
+		# Apply filter
+		df_igP = df_ig[df_ig['chan'].isin(sta_list)]
+		# Get inverse filtered
+		df_igR = df_ig[~df_ig['chan'].isin(sta_list)]
+		# Proceed with processing
+		# Create dataframe with GeoRod errors
+		err_gP = pd.DataFrame({'xsig':np.ones(len(df_igP),)*gx_err,'tsig':np.ones(len(df_igP),)*pick_err})
+		# Conduct time corrections
+		df_tcorr = ODR_poly_dt_est(df_igP,err_gP,df_in,err_n,order=fit_poly)
+		dt_corr = np.mean(df_igP['epoch'].values - df_tcorr.values[:,0])
+		# Generate corrections for un-included data in ODR procesing
+		df_tcorr_sup = pd.DataFrame({'epoch corr':df_igR['epoch'].values - dt_corr},index=df_igR.index)
+		df_tc = pd.concat([df_tc,df_tcorr,df_tcorr_sup],axis=0,ignore_index=False)
+		if isplot:
+			plt.figure()
+			# Plot time-corrected epochs
+			plt.plot(df_i[df_i.index.isin(df_tcorr.index)]['SRoff m'].values,df_tcorr['epoch corr'].values,'s',label='Corrected Data')
+			# Plot original epochs
+			plt.plot(df_i['SRoff m'].values,df_i['epoch'].values,'o',label='Uncorrected Data')
+			plt.plot(df_in['SRoff m'].values,df_in['epoch'].values,'.',label='Reference Picks')
+			plt.title('%s %s'%(SP_,SH_))
+			plt.legend()
+	# Otherwise, process all georods - location uncertainties tend to blow-up less
+	else:	
+		# Create dataframe with GeoRod errors
+		err_g = pd.DataFrame({'xsig':np.ones(len(df_ig),)*gx_err,'tsig':np.ones(len(df_ig),)*pick_err})
+		# Conduct time corrections
+		df_tcorr = ODR_poly_dt_est(df_ig,err_g,df_in,err_n,order=fit_poly)
+		# Vertically concat
+		df_tc = pd.concat([df_tc,df_tcorr],axis=0,ignore_index=False)
+
 	# breakpoint()
-	if isplot:
-		plt.figure()
-		# Plot time-corrected epochs
-		plt.plot(df_i[df_i.index.isin(df_tcorr.index)]['SRoff m'].values,df_tcorr['epoch corr'].values,'s',label='Corrected Data')
-		# Plot original epochs
-		plt.plot(df_i['SRoff m'].values,df_i['epoch'].values,'o',label='Uncorrected Data')
-		plt.plot(df_in['SRoff m'].values,df_in['epoch'].values,'.',label='Reference Picks')
-		plt.title('%s %s'%(SP_,SH_))
-		plt.legend()
+		if isplot:
+			plt.figure()
+			# Plot time-corrected epochs
+			plt.plot(df_i[df_i.index.isin(df_tcorr.index)]['SRoff m'].values,df_tcorr['epoch corr'].values,'s',label='Corrected Data')
+			# Plot original epochs
+			plt.plot(df_i['SRoff m'].values,df_i['epoch'].values,'o',label='Uncorrected Data')
+			plt.plot(df_in['SRoff m'].values,df_in['epoch'].values,'.',label='Reference Picks')
+			plt.title('%s %s'%(SP_,SH_))
+			plt.legend()
 # Fill out Node entries for epoch corr
 df_tc = pd.concat([df_tc,pd.DataFrame({'epoch corr':df[df['itype']=='Node']['epoch'].values},\
 									   index=df[df['itype']=='Node'].index)])
