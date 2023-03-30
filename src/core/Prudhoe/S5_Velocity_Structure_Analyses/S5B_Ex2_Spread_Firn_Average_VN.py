@@ -65,6 +65,8 @@ MROOT = os.path.join(ROOT,'velocity_models','structure_experiments')
 DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 # Wiechert-Herglotz-Bateman Reference Model(s)
 UFMT = os.path.join(ROOT,'velocity_models','Spread_{SP}_v5_ele_MK2_ptO3_GeoRod_KB_ext_WHB_ODR_LHSn100.csv')
+# Reference KB79 Model
+CFMT = os.path.join(ROOT,'velocity_models','Spread_{SP}_v5_ele_MK2_ptO3_KB_ext_KB79_ODR.csv')
 
 ### Load Phase Pick Data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
@@ -74,7 +76,8 @@ df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 for SP_ in ['NS01','NS02','NS03','WE01','WE02','WE03']:
 	### Load WHB Model for Average Firn Structure
 	df_MOD = pd.read_csv(UFMT.format(SP=SP_))
-	
+	df_COV = pd.read_csv(CFMT.format(SP=SP_))
+	KB_DT = df_COV['mean'].values[-1]
 	# Iterate across firn perturbation types
 	for fld_ in ['mean','Q10','Q90']:
 		for KD_ in [1,2]:
@@ -101,7 +104,8 @@ for SP_ in ['NS01','NS02','NS03','WE01','WE02','WE03']:
 
 			### Pull data vectors
 			xx = sD_['SRoff m'].values
-			tt = sD_['tt sec'].values
+			tt = sD_['tt sec'].values + 1e-3*KB_DT
+	
 			# Populate instrument-type specific location uncertainties
 			xsig = Node_xSig*(sD_['itype']=='Node').values**2 + GeoRod_xSig*(sD_['itype']=='GeoRod').values**2
 			# Populate pick-time uncertainties

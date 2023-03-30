@@ -75,7 +75,7 @@ sD_ = df_picks[(df_picks['phz']=='S')&\
 
 ### Pull data vectors
 xx = sD_['SRoff m'].values
-tt = sD_['tt sec'].values - KB_DT
+tt = sD_['tt sec'].values - 1e-3*KB_DT
 # Populate instrument-type specific location uncertainties
 xsig = Node_xSig*(sD_['itype']=='Node').values**2 + GeoRod_xSig*(sD_['itype']=='GeoRod').values**2
 # Populate pick-time uncertainties
