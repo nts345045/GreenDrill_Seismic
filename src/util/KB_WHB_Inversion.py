@@ -38,8 +38,7 @@ def KB79_exp_ext_fun(xx,aa,bb,cc,dd,ee,t0):
 	a floating intercept (t0) to allow for errors unresolved
 	by travel-time corrections
  	"""
- 	tt = aa*(1. - np.exp(-bb*xx)) + \
- 		 cc*(1. - np.exp(-dd*xx)) + ee*xx + t0
+ 	tt = aa*(1. - np.exp(-bb*xx)) + cc*(1. - np.exp(-dd*xx)) + ee*xx + t0
  	return tt
 
 def KB79_odr_fun(beta,xx):
