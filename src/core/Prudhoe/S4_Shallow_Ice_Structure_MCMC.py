@@ -217,7 +217,7 @@ write_MCMC = False
 KB79_ext_bool = False
 # Exclude 0-offset shot-receiver gather data?
 no_0_offset_data = False
-# Render plots?
+# Render intermediate plots?
 isplot = False
 
 ### MAP DATA ###
