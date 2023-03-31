@@ -23,7 +23,7 @@ import util.Dix_1D_Raytrace_Analysis as d1d
 ### MAP DATA ###
 ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
 OROOT = os.path.join(ROOT,'velocity_models')
-DPHZ = os.path.join(ROOT,'VelCorrected_Phase_Picks_O2_idsw_v5.csv')
+DPHZ = os.path.join(ROOT,'Full_v5_ele_MK2_ptO3_KB_ext_KB79_ODR.csv')
 
 # Load pick data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
@@ -34,8 +34,8 @@ df_picks = df_picks[df_picks['phz'].isin(['P','S','R'])]
 mod_dict = {'Full':{'WHB':'Full_v8_WHB_ODR_LHSn100.csv',\
 					'RT':'Ice_Thickness_1DRT_v8_K2_FINE_WIDE_Full_mean_GridSearch.csv'}}
 for sp_ in ['NS01','NS02','NS03','WE01','WE02','WE03']:
-	mod_dict.update({sp_:{'WHB':'Spread_%s_v8_GeoRod_WHB_ODR_LHSn100.csv'%(sp_),\
-						  'RT':'Ice_Thickness_1DRT_v8_D2_FINE_%s_mean_DepthSweep.csv'%(sp_)}})
+	mod_dict.update({sp_:{'WHB':'Spread_{SP}_v8_GeoRod_WHB_ODR_LHSn100.csv'.format(SP=sp_),\
+						  'RT':'Ice_Thickness_1DRT_v8_D2_FINE_{SP}_mean_DepthSweep.csv'.format(SP=sp_)}})
 
 
 # Iterate across unique combinations
