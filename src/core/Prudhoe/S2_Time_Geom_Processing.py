@@ -254,7 +254,7 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,df_GPSc,proj_epsg='epsg:32619'):
 	# wflist = glob(os.path.join(PATH,'*.mseed'))
 	# Find event markers and phase markers
 	plist = []; elist = []; mtype = []; time = []; timestamp = []; t0_ref = []; phz = []; itype = [];
-	kind = []; net = []; sta = []; loc = []; chan = []; ehash = []; shotno = [];
+	kind = []; net = []; sta = []; loc = []; chan = []; ehash = []; shotno = []; offset_code = [];
 	static = []; filt_type = []; freq1 = []; freq2 = []; wffil = []; spread = [];
 	# Iterate across markers
 	for m_ in markers:
@@ -264,7 +264,9 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,df_GPSc,proj_epsg='epsg:32619'):
 			timestamp.append(pd.Timestamp(m_.get_tmin()*1e9))
 			kind.append(m_.kind)
 			ehash.append(m_.get_event_hash())
-			shotno.append(S_meta['Shot #'])			
+			shotno.append(S_meta['Shot #'])
+			off_code = df_SHOT[df_SHOT['Data_File']==str(S_meta['Shot #'])+'.dat']['OffsetCode'].values[0]
+			offset_code.append(int(off_code/250))	
 			spread.append(S_meta['Spread'])
 			if S_meta['Lowpass'] > 0 and S_meta['Highpass'] > 0:
 				filt_type.append('bandpass')
@@ -317,7 +319,8 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,df_GPSc,proj_epsg='epsg:32619'):
 				else:
 					static.append(False)
 	try:
-		df_picks = pd.DataFrame({'spread':spread,'shot #':shotno,'net':net,'sta':sta,'loc':loc,'chan':chan,\
+		df_picks = pd.DataFrame({'spread':spread,'shot #':shotno,'offset code':offset_code,\
+								 'net':net,'sta':sta,'loc':loc,'chan':chan,\
 								 'kind':kind,'phz':phz,'type':mtype,'time':timestamp,'epoch':time,\
 								 'hash':ehash,'static':static,'filt':filt_type,'freq1':freq1,'freq2':freq2,\
 								 'itype':itype,'wf file':wffil}) 
@@ -347,6 +350,7 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,df_GPSc,proj_epsg='epsg:32619'):
 	# Get Source-Receiver Offsets
 	SRX = []; SRY = []; SRH = []; SRoff = []; SRaz = []; SRang = []; 
 	CMP_mE = []; CMP_mN = []; CMP_mH = [];
+
 	for i_ in range(len(df_picks)):
 		if df_picks.iloc[i_]['type']=='Phase' and df_picks.iloc[i_]['static']:
 			# Get specific pick entry
@@ -376,6 +380,7 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,df_GPSc,proj_epsg='epsg:32619'):
 			iSRaz,iSRang = gt.cartesian_azimuth(iDX,iDY)
 			SRaz.append(iSRaz)
 			SRang.append(iSRang)
+
 		# If pick is on moving shot-co-located receivers
 		elif df_picks.iloc[i_]['sta'] in ['SR4K','SR2K']:
 			# Set offsets at a standard stand-off of 3 m laterally, and shot depth vertically
@@ -425,7 +430,7 @@ def smf2df(MROOT,S_meta,df_SITE,df_SHOT,df_GPSc,proj_epsg='epsg:32619'):
 			CMP_mN.append(np.nan)
 			CMP_mH.append(np.nan)
 	# Append to distances to picks
-	df_picks = pd.concat([df_picks,pd.DataFrame({"SRoff m":SRoff,"SR mE":SRX,"SR mN":SRY,'SR mELE':SRH,\
+	df_picks = pd.concat([df_picks,pd.DataFrame({"SRoff m":SRoff,"SR mE":SRX,"SR mN":SRY,'SR mH':SRH,\
 												 'az rad':SRaz,'ang rad':SRang,'CMP mE':CMP_mE,'CMP mN':CMP_mN,\
 												 'CMP mH':CMP_mH,"t0 ref":t0_ref},index=df_picks.index)],\
 						 axis=1,ignore_index=False)
@@ -498,7 +503,7 @@ REF_NODES = {'NS01':['GCR2K','PR12','PR04'],'NS02':['GCR2K','PR04'],\
 			 'WE02':['GCR2K','PR03'],'WE03':['GCR2K','PR03','PR10']}
 
 # Zero-offset shots to process only using channels 25Z-48Z 
-ZO_TROUBLE_LIST = [307,319,352,396]
+ZO_TROUBLE_LIST = [307,308,319,352,396]
 
 df_tc = pd.DataFrame()
 # Need to correct the below to filter for kind = 1 and phz = P
@@ -507,7 +512,7 @@ for SP_,SH_ in df[['spread','shot #']].value_counts().index:
 	# Subset phase DataFrame
 	df_i = df[(df['spread']==SP_)&(df['shot #']==SH_)]
 	# Get Shot Index in Sequence
-	sp_shot_ind = df_SHOT[df_SHOT['Data_File']==str(SH_)+'.dat']['Shot_No'].values[0]
+	offset_code = df_i['offset code'].unique()[0]
 	# Subset GeoRod Entries
 	df_ig = df_i[df_i['itype']=='GeoRod']
 	# Subset Node Entries
@@ -517,7 +522,7 @@ for SP_,SH_ in df[['spread','shot #']].value_counts().index:
 
 	# if this shot is in the middle of the spread, do separate corrections for each side of the array
 	# This counteracts blow-up of small distance uncertainties in sorting out timing corrections
-	if sp_shot_ind == 1 and SH_ not in ZO_TROUBLE_LIST:
+	if offset_code == 0 and SH_ not in ZO_TROUBLE_LIST:
 		for P_ in range(2):
 			# Create station sublists
 			if P_ == 0:
@@ -546,7 +551,7 @@ for SP_,SH_ in df[['spread','shot #']].value_counts().index:
 			plt.title('%s %s'%(SP_,SH_))
 			plt.legend()
 	# Just work with the channels 25Z-48Z for correction
-	elif sp_shot_ind == 1 and SH_ in ZO_TROUBLE_LIST:
+	elif offset_code == 0 and SH_ in ZO_TROUBLE_LIST:
 		sta_list = [x for x in df_ig['chan'] if int(x[:2]) > 24]
 		# Apply filter
 		df_igP = df_ig[df_ig['chan'].isin(sta_list)]
