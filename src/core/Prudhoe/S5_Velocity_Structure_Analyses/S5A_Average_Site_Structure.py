@@ -35,7 +35,7 @@ GeoRod_xSig = 1.
 # Phase pick time uncertainties in seconds
 tt_sig = 1e-3
 # Parameter sweep coefficients
-COARSE_dHN = 30 # [m] +/- (half) range to scan over for Nth layer thickness in coarse grid-searches
+COARSE_dHN = 50 # [m] +/- (half) range to scan over for Nth layer thickness in coarse grid-searches
 COARSE_NODES= 21 # [#] grid nodes for HN and VN sweeps in fine grid-searches
 FINE_dVN = 5 # [m/s] +/- (half) range to scan over for Nth layer velocity in fine grid-searches
 FINE_dZN = 5 # [m] +/- (half) range to scan over for the Nth layer thickness in fine grid-searches
@@ -43,7 +43,7 @@ FINE_NODES= 21 # [#] grid nodes for HN and VN sweeps in fine grid-searches
 # Runtime controls
 issave = True
 isplot = True
-
+apply_DT = False
 
 ######## DATA LOADING SECTION ########
 ### MAP FILE STRUCTURE ###
@@ -63,8 +63,10 @@ df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 
 ### Load KB79 Model
 df_cov = pd.read_csv(CDAT)
-
-KB_DT = df_cov['mean'].values[-1]
+if apply_DT:
+	KB_DT = df_cov['mean'].values[-1]
+else:
+	KB_DT = 0.
 
 ### Load WHB Model
 df_MOD = pd.read_csv(UDAT)
