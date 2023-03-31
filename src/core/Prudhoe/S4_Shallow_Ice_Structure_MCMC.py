@@ -211,21 +211,28 @@ tt_sig = 1e-3
 n_draw = 100
 ms2m=1e-12
 sig_rule='trap'
+# Write out all MCMC models (True), or just summary (False)?
 write_MCMC = False
-KB79_ext_bool = True
+# Include a t0 shift for KB79 fitting?
+KB79_ext_bool = False
+# Exclude 0-offset shot-receiver gather data?
+no_0_offset_data = False
 # Render plots?
 isplot = False
 
 ### MAP DATA ###
 ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
 OROOT = os.path.join(ROOT,'velocity_models')
-DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
+DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured.csv')
 
 ### Load data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 # Subset diving-wave arrivals of interest
 pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&\
 			   (df_picks['kind'].isin([1,2]))&(df_picks['SRoff m'] > 10)]
+
+if no_0_offset_data:
+	pD_ = pD_[pD_['offset code'] > 0]
 			   # &\
 			   # (df_picks['itype']=='GeoRod')]
 
@@ -289,6 +296,8 @@ for i_,SP_ in enumerate(SP_Sort):
 	pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&\
 				   (df_picks['kind']==1)&(df_picks['SRoff m'] > 3)&(df_picks['spread']==SP_)&\
 				   (df_picks['itype']=='GeoRod')]
+	if no_0_offset_data:
+		pD_ = pD_[pD_['offset code'] > 0]
 
 	### RUN PROCESSING ON SPREAD DATA ###
 	ixx = pD_['SRoff m'].values

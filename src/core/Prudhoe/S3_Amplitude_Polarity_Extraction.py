@@ -183,7 +183,7 @@ def fetch_amplitudes_driver(df_picks,t0pad=0.005,tfpad=0.055,fftpad=0.01):
 ##### ACTUAL PROCESSING #####
 ROOT = os.path.join('..','..','..','..','..')
 DROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
-DPHZ = os.path.join(DROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
+DPHZ = os.path.join(DROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured.csv')
 ### LOAD PHASE DATA ###
 df_ = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 ### RUN CORE PROCESSING ###
