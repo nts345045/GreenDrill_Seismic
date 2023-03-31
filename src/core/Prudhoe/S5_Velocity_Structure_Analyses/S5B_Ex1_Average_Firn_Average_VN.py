@@ -43,7 +43,7 @@ VFINE_dZN = 15 # [m] +/- (half) range to scan over for the Nth layer thickness i
 VFINE_NODES = 31 # [#]grid nodes for ZN sweeps in very fine grid-searches
 # Runtime controls
 issave = True
-
+apply_DT = False
 
 ######## DATA LOADING SECTION ########
 ### MAP FILE STRUCTURE ###
@@ -66,8 +66,10 @@ df_MOD = pd.read_csv(UDAT)
 
 ### Load KB79 Model
 df_COV = pd.read_csv(CDAT)
-
-KB_DT = df_COV['mean'].values[-1]
+if apply_DT:
+	KB_DT = df_COV['mean'].values[-1]
+else:
+	KB_DT = 0.
 
 # Iterate across perturbed firn models
 for fld_ in ['mean','Q10','Q90']:
