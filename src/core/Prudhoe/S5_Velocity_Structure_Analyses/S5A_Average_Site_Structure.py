@@ -52,11 +52,11 @@ ROOT = os.path.join('..','..','..','..','..','..','processed_data','Hybrid_Seism
 # Model Sub-Directory
 MROOT = os.path.join(ROOT,'velocity_models','structure_experiments')
 # Phase Data File
-DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
+DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured.csv')
 # Wiechert-Herglotz-Bateman Reference Model(s)
-UDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_KB_ext_WHB_ODR_LHSn100.csv')
+UDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_WHB_ODR_LHSn100.csv')
 # Reference KB79 Model
-CDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_KB_ext_KB79_ODR.csv')
+CDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_KB79_ODR.csv')
 
 ### Load Phase Pick Data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')

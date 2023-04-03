@@ -259,7 +259,7 @@ if KB79_ext_bool:
 										  KB79_ext=KB79_ext_bool,dt=output['dt'],covdtdt=output['covdtdt'])
 	plot_dt_msec = df_beta['mean'].values[-1]
 else:
-	df_MOD,df_beta = PP_WHB_write_outputs(OROOT,'Full_v5_ele_MK2_ptO3',output,df_uD,df_z,df_X,n_draw,KB79_ext=KB79_ext_bool)
+	df_MOD,df_beta = PP_WHB_write_outputs(OROOT,'Full_v5_ele_MK2_ptO3_sutured',output,df_uD,df_z,df_X,n_draw,KB79_ext=KB79_ext_bool)
 	plot_dt_msec = 0
 
 plt.figure()
@@ -313,11 +313,11 @@ for i_,SP_ in enumerate(SP_Sort):
 	outputi,df_uDi,df_zi,df_Xi = run_WHB_lhs(ixx,itt,ixsig,itsig,n_draw=n_draw,KB79_ext=KB79_ext_bool,bounds=bounds)
 	# Conduct post-processing and write shallow structure model to disk
 	if KB79_ext_bool:
-		idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v5_ele_MK2_ptO3_GeoRod_KB_ext'%(SP_),\
+		idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v5_ele_MK2_ptO3_sutured_GeoRod_KB_ext'%(SP_),\
 												outputi['output'],df_uDi,df_zi,df_Xi,n_draw,KB79_ext=KB79_ext_bool,\
 										 		dt=outputi['dt'],covdtdt=outputi['covdtdt'])
 	else:
-		idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v5_ele_MK2_ptO3_GeoRod'%(SP_),\
+		idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v5_ele_MK2_ptO3_sutured_GeoRod'%(SP_),\
 												outputi,df_uDi,df_zi,df_Xi,n_draw,KB79_ext=KB79_ext_bool)
 
 	k_ = 0
