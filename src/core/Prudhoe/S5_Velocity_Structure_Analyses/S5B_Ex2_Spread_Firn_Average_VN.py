@@ -65,11 +65,12 @@ ROOT = os.path.join('..','..','..','..','..','..','processed_data','Hybrid_Seism
 # Model Sub-Directory
 MROOT = os.path.join(ROOT,'velocity_models','structure_experiments')
 # Phase Data File
-DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
+DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured.csv')
 # Wiechert-Herglotz-Bateman Reference Model(s)
-UFMT = os.path.join(ROOT,'velocity_models','Spread_{SP}_v5_ele_MK2_ptO3_GeoRod_KB_ext_WHB_ODR_LHSn100.csv')
+UFMT = os.path.join(ROOT,'velocity_models','Spread_{SP}_v5_ele_MK2_ptO3_sutured_GeoRod_WHB_ODR_LHSn100.csv')
 # Reference KB79 Model
-CFMT = os.path.join(ROOT,'velocity_models','Spread_{SP}_v5_ele_MK2_ptO3_GeoRod_KB_ext_KB79_ODR.csv')
+CFMT = os.path.join(ROOT,'velocity_models','Spread_{SP}_v5_ele_MK2_ptO3_sutured_GeoRod_KB79_ODR.csv')
+
 ### Load Phase Pick Data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 
@@ -84,7 +85,7 @@ for SP_ in ['NS01','NS02','NS03','WE01','WE02','WE03']:
 	else:
 		KB_DT = 0.
 	# Iterate across firn perturbation types
-	for fld_ in ['mean','Q10','Q90']:
+	for fld_ in ['mean','Q025','Q975']:
 		for KD_ in [1,2]:
 			print('Running %s (%s firn model) for Z_N (K: %d)'%(SP_,fld_,KD_))
 			### Load relevant deep model from ensemble average

@@ -2,7 +2,7 @@
 :module: S5_PostProcess_Vel_Structure_Tests.py
 :prupose: Create a summary table of all vertical velocity structure experiments and incorporate 
 			shot-receiver geometry measures from STEP1 to create pseudo-sections of the 
-			bed reflector topography
+			bed reflector topography. Output 
 
 :TODO:
 Bring in Phase picks and create a geometric representation of sampled parts of the bed from 
@@ -43,7 +43,7 @@ def read_ZN_experiment(fname):
 		# Scrape experiment information from experiment file-name
 		FM = nps[3] # Firn Model type
 		FMQ = nps[2] # Firn Model Quantile perturbation used
-		KD = 'all' # Data KinD used
+		KD = 2 # Data KinD used
 		RES = nps[1] # Grid/Parameter Search RESolution
 		DS = nps[6] # Data Slice
 		SI = nps[0] # Step Number
@@ -96,6 +96,8 @@ DPHZ = os.path.join(MROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 SITE = os.path.join(ROOT,'processed_data','Combined_SITE_Table_ELE_corr.csv')
 # Handheld GPS Tracks
 GPSc = os.path.join(ROOT,'processed_data','GPS','Prudhoe_Elevation_Corrected_GPS_Tracks.csv')
+# Output Master compiled dataframe
+OMFILE = os.path.join(MROOT,'')
 
 ### DATA EXTRACTION ###
 
@@ -169,87 +171,164 @@ for i_ in tqdm(range(len(df_SUM))):
 			pD_['CMP mE'].min(),pD_['CMP mN'].min(),pD_['CMP mH'].min(),\
 			pD_['CMP mE'].max(),pD_['CMP mN'].max(),pD_['CMP mH'].max(),\
 			pD_['CMP mE'].quantile(.5),pD_['CMP mN'].quantile(.5),pD_['CMP mH'].quantile(.5),\
-			pD_['CMP mE'].quantile(.1),pD_['CMP mN'].quantile(.1),pD_['CMP mH'].quantile(.1),\
-			pD_['CMP mE'].quantile(.9),pD_['CMP mN'].quantile(.9),pD_['CMP mH'].quantile(.9),\
+			pD_['CMP mE'].quantile(.025),pD_['CMP mN'].quantile(.025),pD_['CMP mH'].quantile(.025),\
+			pD_['CMP mE'].quantile(.975),pD_['CMP mN'].quantile(.975),pD_['CMP mH'].quantile(.975),\
 			CMPcov[0,0],CMPcov[1,1],CMPcov[2,2],CMPcov[0,1],CMPcov[0,2],CMPcov[1,2]]
 
 	CMP_stats.append(line)
 
+## Compile CMP Geometry Data for Each Data Slice
 df_CMP = pd.DataFrame(CMP_stats,columns=['mE mean','mN mean','mH mean',\
 										 'mE max','mN max','mH max',\
 										 'mE min','mN min','mH min',\
 										 'mE med','mN med','mH med',\
-										 'mE Q10','mN Q10','mH Q10',\
-										 'mE Q90','mN Q90','mH Q90',\
+										 'mE Q025','mN Q025','mH Q025',\
+										 'mE Q975','mN Q975','mH Q975',\
 										 'mE var','mN var','mH var',\
 										 'mEmNcov','mEmHcov','mNmHcov'],\
 					  index=IND)
 
+# Create "M"aster dataframe
 df_M = pd.concat([df_SUM,df_CMP],axis=1,ignore_index=False)
 
-plt.subplot(121)
-plt.errorbar(df_M['mE mean'],df_M['mH mean'] - df_M['Z m'],\
-			 xerr=df_M['mE var'].values**0.5,\
-			 yerr=df_M['mH var'].values**0.5,\
-			 fmt='.')
-plt.scatter(df_M['mE mean'],df_M['mH mean'] - df_M['Z m'],c=df_M['mN mean'].values)
+# df_M.to_csv(OMFILE,header=True,index=False)
 
+# Associate Data
+holder = []
+sets = df_M[['Experiment','Firn Model','Data Slice','Data Kind']].value_counts().index
+for EX_,FM_,DS_,DK_ in sets:
+	df_ = df_M[(df_M['Experiment']==EX_)&\
+			   (df_M['Firn Model']==FM_)&\
+			   (df_M['Data Kind']==DK_)&\
+			   (df_M['Data Slice']==DS_)]
+	if 'VFINE' in df_['Grid Resolution'].unique():
+		df_ = df_[df_['Grid Resolution']=='VFINE']
+	elif 'FINE' in df_['Grid Resolution'].unique():
+		df_ = df_[df_['Grid Resolution']=='FINE']
+	odict = {}
+	for FQ_ in ['Q025','mean','Q975']:
+		df_f = df_[df_['Firn Model Quantile']==FQ_]
+
+		line=list(df_f[['Z m','VN m/s','IsEdge','Grid Resolution']].values[0][:])
+
+		if FQ_ != 'mean':
+			 line += list(df_f.filter(like=FQ_).values[0][:])
+		else:
+			line += list(df_f[['mE mean','mN mean','mH mean']].values[0][:])
+		odict.update({FQ_:line})
+	odf = pd.DataFrame(odict,index=['Z m','VN m/s','IsEdge','Grid Resolution','mE','mN','mH'])
+	holder.append(odf.T)
+
+ODICT = dict(zip(sets,holder))
+
+marks = {'Ex0':'.','Ex1':'o','Ex2':'s'}
+# colors = {1:'k',2:'r'}
+colors = {'Ex0':'k','Ex1':'b','Ex2':'r'}
+lines = {'COARSE':':','FINE':'--','VFINE':'-'}
+for DK_ in [1]:
+	plt.figure()
+	for EX_,GR_ in df_M[['Experiment','Grid Resolution']].value_counts().index:
+
+		for S_,D_ in ODICT.items():	
+			if D_['IsEdge'].sum(axis=0) == 0 and S_[-1]==DK_ and S_[0]==EX_:
+				plt.subplot(221)
+				plt.plot(D_.loc['mean','mE']*np.ones(3),D_['mH'] - D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
+				plt.plot(D_['mE'],(D_.loc['mean','mH'] - D_.loc['mean','Z m'])*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
+				plt.subplot(222)
+				plt.plot(D_.loc['mean','mN']*np.ones(3),D_['mH'] - D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
+				plt.plot(D_['mN'],(D_.loc['mean','mH'] - D_.loc['mean','Z m'])*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
+				plt.subplot(223)
+				plt.plot(D_.loc['mean','mE']*np.ones(3),D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
+				plt.plot(D_['mE'],D_.loc['mean','Z m']*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
+				plt.subplot(224)
+				plt.plot(D_.loc['mean','mN']*np.ones(3),D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
+				plt.plot(D_['mN'],D_.loc['mean','Z m']*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
+	# plt.title('{} {}'.format(EX_,DK_))
+plt.subplot(221)
 plt.plot(df_M['mE mean'],df_M['mH mean'],'ks')
-
-
-plt.xlabel('Easting (Cross-Line) [m]')
-plt.ylabel('Elevation [m ASL]')
-# plt.ylim([df_M['Z m'].max() + 10,df_M['Z m'].min() - 10])
-plt.legend()
-plt.subplot(122)
-plt.errorbar(df_M['mN mean'],df_M['mH mean'] - df_M['Z m'],
-			 xerr=df_M['mN var'].values**0.5,\
-			 yerr=df_M['mH var'].values**0.5,\
-			 fmt='.')
-plt.scatter(df_M['mN mean'],df_M['mH mean'] - df_M['Z m'],c=df_M['mE mean'].values)
+plt.subplot(222)
 plt.plot(df_M['mN mean'],df_M['mH mean'],'ks')
 
-plt.xlabel('Northing (In-Line) [m]')
-plt.ylabel('Elevation [m ASL]')
-plt.legend()
 
 
-for E_ in ['Ex1','Ex2']:
-	plt.figure()
-	for Q_ in ['mean','Q10','Q90']:
-		df = df_M[(df_M['Grid Resolution']=='FINE')&\
-				  (df_M['Firn Model Quantile']==Q_)&\
-				  (df_M['Data Kind']==1)&\
-				  (~df_M['IsEdge'].values)&\
-				  (df_M['Experiment']==E_)]
-		plt.subplot(121)
-		plt.errorbar(df['mE '+Q_],df['mH '+Q_] - df['Z m'],\
-					 xerr=df['mE var'].values**0.5,\
-					 yerr=df['mH var'].values**0.5,\
-					 fmt='.',label=Q_+" "+E_)
-		plt.scatter(df['mE '+Q_],df['mH '+Q_] - df['Z m'],c=df['mN '+Q_].values)
 
-		plt.plot(df['mE '+Q_],df['mH '+Q_],'ks')
+# # df_M1 = df_M[]
+# # # Create Composite Representations
+# # for EX_ in ['Ex1','Ex2']:
+# # 	sets = df_M[]
+
+# # sets = df_M[['']]
 
 
-		plt.xlabel('Easting (Cross-Line) [m]')
-		plt.ylabel('Elevation [m ASL]')
-		# plt.ylim([df['Z m'].max() + 10,df['Z m'].min() - 10])
-		plt.legend()
-		plt.subplot(122)
-		plt.errorbar(df['mN '+Q_],df['mH '+Q_] - df['Z m'],
-					 xerr=df['mN var'].values**0.5,\
-					 yerr=df['mH var'].values**0.5,\
-					 fmt='.',label=Q_+" "+E_)
-		plt.scatter(df['mN '+Q_],df['mH '+Q_] - df['Z m'],c=df['mE '+Q_].values)
-		plt.plot(df['mN '+Q_],df['mH '+Q_],'ks')
 
-		plt.xlabel('Northing (In-Line) [m]')
-		plt.ylabel('Elevation [m ASL]')
-		plt.legend()
-# plt.ylim([df['Z m'].max() + 10,df['Z m'].min() - 10])
+# ### PLOTTING SECTION ###
+# plt.figure()
+# plt.subplot(121)
+# plt.errorbar(df_M['mE mean'],df_M['mH mean'] - df_M['Z m'],\
+# 			 xerr=df_M['mE var'].values**0.5,\
+# 			 yerr=df_M['mH var'].values**0.5,\
+# 			 fmt='.')
+# plt.scatter(df_M['mE mean'],df_M['mH mean'] - df_M['Z m'],c=df_M['mN mean'].values)
+
+# plt.plot(df_M['mE mean'],df_M['mH mean'],'ks')
+
+
+# plt.xlabel('Easting (Cross-Line) [m]')
+# plt.ylabel('Elevation [m ASL]')
+# # plt.ylim([df_M['Z m'].max() + 10,df_M['Z m'].min() - 10])
+# plt.legend()
+# plt.subplot(122)
+# plt.errorbar(df_M['mN mean'],df_M['mH mean'] - df_M['Z m'],
+# 			 xerr=df_M['mN var'].values**0.5,\
+# 			 yerr=df_M['mH var'].values**0.5,\
+# 			 fmt='.')
+# plt.scatter(df_M['mN mean'],df_M['mH mean'] - df_M['Z m'],c=df_M['mE mean'].values)
+# plt.plot(df_M['mN mean'],df_M['mH mean'],'ks')
+
+# plt.xlabel('Northing (In-Line) [m]')
+# plt.ylabel('Elevation [m ASL]')
+# plt.legend()
+
+
+# for E_ in ['Ex1','Ex2']:
+# 	plt.figure()
+# 	for Q_ in ['mean','Q025','Q975']:
+# 		for K_ in [1]:
+# 			df = df_M[(df_M['Grid Resolution']=='VFINE')&\
+# 					  (df_M['Firn Model Quantile']==Q_)&\
+# 					  (df_M['Data Kind']==K_)&\
+#   					  (df_M['Experiment']==E_)]#&\
+# 					  # (~df_M['IsEdge'].values)]
+# 			plt.subplot(121)
+# 			plt.errorbar(df['mE '+Q_],df['mH '+Q_] - df['Z m'],\
+# 						 xerr=df['mE var'].values**0.5,\
+# 						 yerr=df['mH var'].values**0.5,\
+# 						 fmt='.',label=Q_+" "+E_+" "+str(K_))
+# 			plt.scatter(df['mE '+Q_],df['mH '+Q_] - df['Z m'],c=df['mN '+Q_].values)
+
+# 			plt.plot(df['mE '+Q_],df['mH '+Q_],'ks')
+
+
+# 			plt.xlabel('Easting (Cross-Line) [m]')
+# 			plt.ylabel('Elevation [m ASL]')
+# 			# plt.ylim([df['Z m'].max() + 10,df['Z m'].min() - 10])
+# 			plt.legend()
+# 			plt.subplot(122)
+# 			plt.errorbar(df['mN '+Q_],df['mH '+Q_] - df['Z m'],
+# 						 xerr=df['mN var'].values**0.5,\
+# 						 yerr=df['mH var'].values**0.5,\
+# 						 fmt='.',label=Q_+" "+E_+" "+str(K_))
+# 			plt.scatter(df['mN '+Q_],df['mH '+Q_] - df['Z m'],c=df['mE '+Q_].values)
+# 			plt.plot(df['mN '+Q_],df['mH '+Q_],'ks')
+
+# 			plt.xlabel('Northing (In-Line) [m]')
+# 			plt.ylabel('Elevation [m ASL]')
+# 			plt.legend()
+# # plt.ylim([df['Z m'].max() + 10,df['Z m'].min() - 10])
 
 
 
 
 plt.show()
+
+

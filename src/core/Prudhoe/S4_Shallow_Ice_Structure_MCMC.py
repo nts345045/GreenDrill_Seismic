@@ -159,8 +159,8 @@ def PP_WHB_write_outputs(OROOT,FN_start,output,df_uD,df_z,df_X,n_draw,dt=0,covdt
 					u(z) = WHB slowness values [msec/m]		 			mean
 					z = WHB depth values [m Below Glacier Surface]		std
 																		median
-																		10th quantile (Q10)
-																		90th quantile (Q90)
+																		2.5th quantile (Q025)
+																		97.5th quantile (Q975)
 	:return df_beta: pandas.DataFrame containing a summary of the KB'79 model fit
 
 
@@ -192,8 +192,8 @@ def PP_WHB_write_outputs(OROOT,FN_start,output,df_uD,df_z,df_X,n_draw,dt=0,covdt
 	df_MOD = pd.DataFrame({'mean u(z)':df_uD.mean(axis=0).values,'mean z':df_z.mean(axis=0).values,'mean X':df_X.mean(axis=0),\
 						   'std u(z)':df_uD.std(axis=0).values,'std z':df_z.std(axis=0).values,'std X':df_X.std(axis=0).values,\
 						   'median u(z)':df_uD.median(axis=0).values,'median z':df_z.median(axis=0).values,'median X':df_X.median(axis=0).values,\
-						   'Q10 u(z)':df_uD.quantile(.1,axis=0).values,'Q10 z':df_z.quantile(.1,axis=0).values,'Q10 X':df_X.quantile(.1,axis=0).values,\
-						   'Q90 u(z)':df_uD.quantile(.9,axis=0).values,'Q90 z':df_z.quantile(.9,axis=0).values,'Q90 X':df_X.quantile(.9,axis=0).values})
+						   'Q025 u(z)':df_uD.quantile(.025,axis=0).values,'Q025 z':df_z.quantile(.025,axis=0).values,'Q025 X':df_X.quantile(.025,axis=0).values,\
+						   'Q975 u(z)':df_uD.quantile(.975,axis=0).values,'Q975 z':df_z.quantile(.975,axis=0).values,'Q975 X':df_X.quantile(.95,axis=0).values})
 	df_MOD.to_csv(os.path.join(OROOT,'%s_WHB_ODR_LHSn%d.csv'%(FN_start,n_draw)),header=True,index=False)
 	return df_MOD,df_beta
 
@@ -269,7 +269,7 @@ plt.xlabel('Source receiver offset [m]')
 plt.ylabel('Travel time [sec]')
 
 k_ = 0
-for fmt,X_,Y_ in [('k-','median u(z)','median z'),('k:','Q10 u(z)','Q10 z'),('k:','Q90 u(z)','Q90 z')]:
+for fmt,X_,Y_ in [('k-','median u(z)','median z'),('k:','Q025 u(z)','Q025 z'),('k:','Q975 u(z)','Q975 z')]:
 
 	if k_ == 0:
 		plt.subplot(223)
@@ -321,7 +321,7 @@ for i_,SP_ in enumerate(SP_Sort):
 												outputi,df_uDi,df_zi,df_Xi,n_draw,KB79_ext=KB79_ext_bool)
 
 	k_ = 0
-	for fmt,X_,Y_ in [('-','median u(z)','median z'),(':','Q10 u(z)','Q10 z'),(':','Q90 u(z)','Q90 z')]:
+	for fmt,X_,Y_ in [('-','median u(z)','median z'),(':','Q025 u(z)','Q025 z'),(':','Q975 u(z)','Q975 z')]:
 		if k_ == 0:
 			plt.subplot(223)
 			plt.plot(1e3/idf_MOD[X_].values,idf_MOD[Y_].values,fmt,label=SP_,color=cid[i_])

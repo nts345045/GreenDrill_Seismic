@@ -93,7 +93,7 @@ Hrms = ODR_Dix.beta[0]
 Vrms = ODR_Dix.beta[1]
 
 ######## GRID-SEARCH SECTION ########
-for fld_ in ['mean','Q10','Q90']:
+for fld_ in ['mean','Q025','Q975']:
 	print('Running %s (firn model: %s)'%('Site Average Structure',fld_))
 	Uwhb = df_MOD['%s u(z)'%(fld_)].values
 	Zwhb = df_MOD['%s z'%(fld_)].values
