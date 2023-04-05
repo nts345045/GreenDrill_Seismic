@@ -1,7 +1,8 @@
 """
 :module: RayTracing_Modeling.py
 :purpose: Conduct ray-tracing for each pick in a given spread using the best-fit velocity
-			model from Step 5 (Sensitivity testing)
+			models from Step 5 (Sensitivity testing) to calculate the geometric spreading
+			(gamma) and ray-path length for all phase-pick data.
 
 :auth: Nathan T. Stevens
 :email: nts5045@psu.edu | ntstevens@wisc.edu
