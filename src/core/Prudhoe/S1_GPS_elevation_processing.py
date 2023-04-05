@@ -39,6 +39,10 @@ df_SHOT = pd.read_csv(SHOT)
 # Filter for just Prudhoe Dome
 df_SHOT = df_SHOT[df_SHOT['Site']=='Prudhoe']
 
+
+DZ_ABS = 1388 - 1296 # [m] Elevation offset for the intersection of WE and NS from GPS/Nodes relative
+					 # to the elevation reported in BedMachine.
+
 ### START OF PROCESSING ###
 # Get UTM19N equivalents for GPS tracks
 mE,mN = gt.LL2epsg(df_GPS['lon'].values,df_GPS['lat'].values)
@@ -134,7 +138,7 @@ for t1_,t2_ in track_pds:
 			idZv = np.nan
 
 		# Apply corrections
-		df_c = pd.DataFrame(z_smooth + np.mean(idZv),index=idf_G.index,columns=['mean(dZ)'])
+		df_c = pd.DataFrame(z_smooth + np.mean(idZv) + DZ_ABS,index=idf_G.index,columns=['mean(dZ)'])
 		df_ele_corr = pd.concat([df_ele_corr,df_c],axis=0,ignore_index=False)
 plt.subplot(212)
 plt.xlabel('Longitude [$^oE$]')
@@ -184,7 +188,6 @@ r_ELE_corr = gt.llh_idw(lon,lat,ele,df_SHOT['REC_lon'].values,df_SHOT['REC_lat']
 df_SHOT2 = df_SHOT.copy()
 df_SHOT2.loc[:,'SHOT_elev'] = s_ELE_corr
 df_SHOT2.loc[:,'REC_ele'] = r_ELE_corr
-
 # Update 
 
 
