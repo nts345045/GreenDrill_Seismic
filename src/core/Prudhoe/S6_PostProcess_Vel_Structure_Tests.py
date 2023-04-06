@@ -97,7 +97,8 @@ SITE = os.path.join(ROOT,'processed_data','Combined_SITE_Table_ELE_corr.csv')
 # Handheld GPS Tracks
 GPSc = os.path.join(ROOT,'processed_data','GPS','Prudhoe_Elevation_Corrected_GPS_Tracks.csv')
 # Output Master compiled dataframe
-OMFILE = os.path.join(MROOT,'')
+OMDIR = os.path.join(MROOT,'velocity_models','structure_summary')
+OMFILE = os.path.join(OMDIR,'Ice_Thickness_Models.csv')
 
 ### DATA EXTRACTION ###
 
@@ -191,7 +192,7 @@ df_CMP = pd.DataFrame(CMP_stats,columns=['mE mean','mN mean','mH mean',\
 # Create "M"aster dataframe
 df_M = pd.concat([df_SUM,df_CMP],axis=1,ignore_index=False)
 
-# df_M.to_csv(OMFILE,header=True,index=False)
+df_M.to_csv(OMFILE,header=True,index=False)
 
 # Associate Data
 holder = []
@@ -217,6 +218,7 @@ for EX_,FM_,DS_,DK_ in sets:
 			line += list(df_f[['mE mean','mN mean','mH mean']].values[0][:])
 		odict.update({FQ_:line})
 	odf = pd.DataFrame(odict,index=['Z m','VN m/s','IsEdge','Grid Resolution','mE','mN','mH'])
+	odf.to_csv(os.path.join(OMDIR,'{}_{}_{}_{}_summary.csv'.format(EX_,FM_,DS_,DK_)),header=True,index=True)
 	holder.append(odf.T)
 
 ODICT = dict(zip(sets,holder))
