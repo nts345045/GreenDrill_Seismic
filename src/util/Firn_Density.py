@@ -45,4 +45,30 @@ def rho_kohnen(vp,vpice=3850.,rhoice=915.):
 	rhoz = rhoice/den
 	return rhoz
 
+def calc_FAC(rho_z,z_vect,rhoice=915.):
+	"""
+	Calculate the Firn Air Content (FAC) using equation 6 in Medley and others (2022)
+	from a density profile
+
+	:: INPUTS ::
+	:param rho_z: density profile density values
+	:param z_vect: density profile depth values
+	:param rhoice: density of glacier ice
+
+	:: OUTPUT ::
+	:param FAC: Firn Air Content
+
+	"""
+	# Filter input density profile to leq ice density
+	IND = rho_z <= rhoice
+	rho_z_f = rho_z[IND]
+	z_vect_f = z_vect[IND]
+	# Get increments of depth
+	dz = z_vect_f[1:] - z_vect_f[:-1]
+	# Get incremental average densities
+	dp = (rho_z_f[1:] + rho_z_f[:-1])/2.
+	# Calculate FAC
+	FAC = np.sum((rhoice - dp)*dz/rhoice)
+	return FAC
+
 
