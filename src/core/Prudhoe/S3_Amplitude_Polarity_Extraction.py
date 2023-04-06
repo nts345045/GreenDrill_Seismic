@@ -16,6 +16,7 @@
 import pandas as pd
 import numpy as np
 from obspy import UTCDateTime, read
+from tqdm import tqdm
 # Add repository root to path & get repo modules of use
 import sys
 import os
@@ -135,7 +136,6 @@ def fetch_amplitudes(df_picks,wf_,t0pad=0.005,tfpad=0.055,fftpad=0.01):
 		dfe = dfi.copy()
 		# breakpoint()
 		df_out = pd.concat([df_out,dfe],axis=0,ignore_index=False)
-
 	return df_out.T, df_fft.T
 
 ##### DRIVER #####
@@ -154,6 +154,7 @@ def fetch_amplitudes_driver(df_picks,t0pad=0.005,tfpad=0.055,fftpad=0.01):
 	:saves processed_amplitudes_*.csv: Files containing amplitude data saved to disk
 	:saves processed_spectra_*.csv: Files containing spectra data saved to disk
 	"""
+	df_picks_updated = pd.DataFrame()
 	S_meta= df_picks[['spread','shot #']].value_counts()
 	amp_save_files = []; save_spreads = []; save_shots = []; fft_save_files = []
 	for I_ in range(len(S_meta)):
@@ -167,7 +168,10 @@ def fetch_amplitudes_driver(df_picks,t0pad=0.005,tfpad=0.055,fftpad=0.01):
 		DF_FFT = pd.DataFrame()
 		for i_,wf_ in enumerate(WF_):
 			print('%03d/%03d'%(i_+1,len(WF_)))
+			# Main Processing
 			idf_out,idf_fft = fetch_amplitudes(idf_picks,wf_,t0pad=t0pad,tfpad=tfpad,fftpad=fftpad)
+			# Update Picks for output with extracted amplitudes
+			df_picks_updated = pd.concat([df_picks_updated,idf_out],axis=0,ignore_index=False)
 			DF_OUT = pd.concat([DF_OUT,idf_out],axis=0,ignore_index=False)
 			DF_FFT = pd.concat([DF_FFT,idf_fft],axis=0,ignore_index=False)
 		I_savefile = os.path.join(os.path.split(wf_)[0],'processed_amplitudes_v5.csv')
@@ -178,7 +182,9 @@ def fetch_amplitudes_driver(df_picks,t0pad=0.005,tfpad=0.055,fftpad=0.01):
 		DF_FFT.to_csv(F_savefile,header=True,index=True)
 
 	df_report = pd.DataFrame({'Spread':save_spreads,'Shot':save_shots,'Amp File':amp_save_files,'FFT File':fft_save_files})
-	return df_report
+	return df_report, df_picks_updated
+
+
 
 ##### ACTUAL PROCESSING #####
 ROOT = os.path.join('..','..','..','..','..')
@@ -187,11 +193,46 @@ DPHZ = os.path.join(DROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured.csv')
 ### LOAD PHASE DATA ###
 df_ = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 ### RUN CORE PROCESSING ###
-df_R_PD = fetch_amplitudes_driver(df_,fftpad=0.02)
+df_R_PD,df_picks_updated = fetch_amplitudes_driver(df_,fftpad=0.02)
 ### WRITE DIRECTORIES TO DISK ###
 df_R_PD.to_csv(os.path.join(DROOT,'AmpSpect_Extraction_Index_v5_MK2.csv'),header=True,index=False)
+df_picks_updated.to_csv(os.path.join(DROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_Amps.csv'),header=True,index=False)
+
+# breakpoint()
+### Process Relative Polarity
+df_P = df_picks_updated[df_picks_updated['phz']=='P']
+df_S = df_picks_updated[df_picks_updated['phz']=='S']
+df_R = df_picks_updated[df_picks_updated['phz']=='R']
+
+PS_pol = []; PS_ind = []
+PR_pol = []; PR_ind = []
+# Iterate across all P-picks
+for SH_,ST_,CH_,DK_ in df_P[['shot #','sta','chan','kind']].value_counts().index:
+	# Subset for diving wave pick
+	idf_P = df_P[(df_P['shot #']==SH_)&(df_P['sta']==ST_)&(df_P['chan']==CH_)&(df_P['kind']==DK_)]
+	# Subset for matching reflected wave pick
+	idf_S = df_S[(df_S['shot #']==SH_)&(df_S['sta']==ST_)&(df_S['chan']==CH_)&(df_S['kind']==DK_)]
+	# Subset for matching multiply reflected wave pick
+	idf_R = df_R[(df_R['shot #']==SH_)&(df_R['sta']==ST_)&(df_R['chan']==CH_)&(df_R['kind']==DK_)]
+	# breakpoint()
+	if len(idf_S) > 0:
+		P_pol = idf_P['Polarity'].values[0]
+		S_pol = idf_S['Polarity'].values[0]
+		PS_ind.append(idf_S.index[0])
+		PS_pol.append(P_pol*S_pol)
+	if len(idf_R) > 0:
+		P_pol = idf_P['Polarity'].values[0]
+		R_pol = idf_R['Polarity'].values[0]
+		PR_ind.append(idf_R.index[0])
+		PR_pol.append(P_pol*R_pol)		
 
 
+S_PS_pol = pd.Series(PS_pol,index=PS_ind,name='PS Relative Polarity')
+S_PR_pol = pd.Series(PR_pol,index=PR_ind,name='PR Relative Polarity')
+
+
+df_picks_updated = pd.concat([df_picks_updated,S_PS_pol,S_PR_pol],axis=1,ignore_index=False)
+df_picks_updated.to_csv(os.path.join(DROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_Amps_RPOL.csv'),header=True,index=False)
 
 
 ##### END #####
