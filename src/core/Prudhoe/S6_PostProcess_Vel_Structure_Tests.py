@@ -169,8 +169,8 @@ for i_ in tqdm(range(len(df_SUM))):
 	CMPcov = pD_[['CMP mE','CMP mN','CMP mH']].cov().values
 	# Compile output geometry line
 	line = [pD_['CMP mE'].mean(),pD_['CMP mN'].mean(),pD_['CMP mH'].mean(),\
-			pD_['CMP mE'].min(),pD_['CMP mN'].min(),pD_['CMP mH'].min(),\
-			pD_['CMP mE'].max(),pD_['CMP mN'].max(),pD_['CMP mH'].max(),\
+			pD_['CMP mE'].min(),pD_['CMP mN'].min(),pD_['CMP mH'].max(),\
+			pD_['CMP mE'].max(),pD_['CMP mN'].max(),pD_['CMP mH'].min(),\
 			pD_['CMP mE'].quantile(.5),pD_['CMP mN'].quantile(.5),pD_['CMP mH'].quantile(.5),\
 			pD_['CMP mE'].quantile(.025),pD_['CMP mN'].quantile(.025),pD_['CMP mH'].quantile(.025),\
 			pD_['CMP mE'].quantile(.975),pD_['CMP mN'].quantile(.975),pD_['CMP mH'].quantile(.975),\

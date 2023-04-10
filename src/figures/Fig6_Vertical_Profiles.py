@@ -147,32 +147,80 @@ ax2.fill_between(df_BM_NS['UTM19N mN'],df_BM_NS['Bed Elevation'].values - 30,df_
 
 
 # Plot Bed Elevations from Seismics
-ax1.errorbar(df_VZN_1_u[IND_WE]['mE mean'].values,df_VZN_1_u[IND_WE]['mH mean']-df_VZN_1_u[IND_WE]['Z m'],\
-			 xerr=[df_VZN_1_u[IND_WE]['mE mean'].values - df_VZN_1_m[IND_WE]['mE min'].values,\
-			       df_VZN_1_M[IND_WE]['mE max'].values - df_VZN_1_u[IND_WE]['mE mean'].values],\
-			 yerr=[df_VZN_1_u[IND_WE]['Z m'].values - df_VZN_1_m[IND_WE]['Z m'].values,\
-			 	   df_VZN_1_M[IND_WE]['Z m'].values - df_VZN_1_u[IND_WE]['Z m'].values],\
-			 	   fmt='.',capsize=5,label='$H_{bed}$(Uniform Firn)',color='dodgerblue')
-ax1.errorbar(df_VZN_2_u[IND_WE]['mE mean'].values,df_VZN_2_u[IND_WE]['mH mean']-df_VZN_2_u[IND_WE]['Z m'],\
-			 xerr=[df_VZN_2_u[IND_WE]['mE mean'].values - df_VZN_2_m[IND_WE]['mE min'].values,\
-			       df_VZN_2_M[IND_WE]['mE max'].values - df_VZN_2_u[IND_WE]['mE mean'].values],\
-			 yerr=[df_VZN_2_u[IND_WE]['Z m'].values - df_VZN_2_m[IND_WE]['Z m'].values,\
-			 	   df_VZN_2_M[IND_WE]['Z m'].values - df_VZN_2_u[IND_WE]['Z m'].values],\
-			 	   fmt='.',capsize=5,label='$H_{bed}$(Laterally Varying Firn)',color='orange')
+Z_1 = df_VZN_1_u[IND_WE]['mH mean']-df_VZN_1_u[IND_WE]['Z m']
+
+patch_bounds_WE_1 = [df_VZN_1_u[IND_WE]['mE mean'].values - df_VZN_1_m[IND_WE]['mE min'].values,\
+       			df_VZN_1_M[IND_WE]['mE max'].values - df_VZN_1_u[IND_WE]['mE mean'].values]
+
+patch_bounds_NS_1 = [df_VZN_1_u[IND_NS]['mN mean'].values - df_VZN_1_m[IND_NS]['mN min'].values,\
+       			df_VZN_1_M[IND_NS]['mN max'].values - df_VZN_1_u[IND_NS]['mN mean'].values]
+
+CI95_bounds_WE_1 = [((df_VZN_1_u[IND_WE]['Z m'].values - df_VZN_1_m[IND_WE]['Z m'].values)**2 +\
+				  df_VZN_1_u[IND_WE]['mH var'].values*1.96**2)**0.5,\
+			 	 ((df_VZN_1_M[IND_WE]['Z m'].values - df_VZN_1_u[IND_WE]['Z m'].values)**2 +\
+			 	  df_VZN_1_u[IND_WE]['mH var'].values*1.96**2)**0.5]
+
+CI95_bounds_NS_1 = [((df_VZN_1_u[IND_NS]['Z m'].values - df_VZN_1_m[IND_NS]['Z m'].values)**2 +\
+				  df_VZN_1_u[IND_NS]['mH var'].values*1.96**2)**0.5,\
+			 	 ((df_VZN_1_M[IND_NS]['Z m'].values - df_VZN_1_u[IND_NS]['Z m'].values)**2 +\
+			 	  df_VZN_1_u[IND_NS]['mH var'].values*1.96**2)**0.5]
+
+ax1.errorbar(df_VZN_1_u[IND_WE]['mE mean'].values,Z_1,xerr=patch_bounds_WE_1,yerr=CI95_bounds_WE_1,\
+			 fmt='.',capsize=5,label='$H_{bed}$(Uniform Firn)',color='dodgerblue')
+
+ax2.errorbar(df_VZN_1_u[IND_NS]['mN mean'].values,Z_1,xerr=patch_bounds_NS_1,yerr=CI95_bounds_NS_1,\
+			 fmt='.',capsize=5,label='$H_{bed}$(Uniform Firn)',color='dodgerblue')
+
+Z_2 = df_VZN_2_u[IND_WE]['mH mean']-df_VZN_2_u[IND_WE]['Z m']
+
+patch_bounds_WE_2 = [df_VZN_2_u[IND_WE]['mE mean'].values - df_VZN_2_m[IND_WE]['mE min'].values,\
+       			df_VZN_2_M[IND_WE]['mE max'].values - df_VZN_2_u[IND_WE]['mE mean'].values]
+
+patch_bounds_NS_2 = [df_VZN_2_u[IND_NS]['mN mean'].values - df_VZN_2_m[IND_NS]['mN min'].values,\
+       			df_VZN_2_M[IND_NS]['mN max'].values - df_VZN_2_u[IND_NS]['mN mean'].values]
+
+CI95_bounds_WE_2 = [((df_VZN_2_u[IND_WE]['Z m'].values - df_VZN_2_m[IND_WE]['Z m'].values)**2 +\
+				  df_VZN_2_u[IND_WE]['mH var'].values*1.96**2)**0.5,\
+			 	 ((df_VZN_2_M[IND_WE]['Z m'].values - df_VZN_2_u[IND_WE]['Z m'].values)**2 +\
+			 	  df_VZN_2_u[IND_WE]['mH var'].values*1.96**2)**0.5]
+
+CI95_bounds_NS_2 = [((df_VZN_2_u[IND_NS]['Z m'].values - df_VZN_2_m[IND_NS]['Z m'].values)**2 +\
+				  df_VZN_2_u[IND_NS]['mH var'].values*1.96**2)**0.5,\
+			 	 ((df_VZN_2_M[IND_NS]['Z m'].values - df_VZN_2_u[IND_NS]['Z m'].values)**2 +\
+			 	  df_VZN_2_u[IND_NS]['mH var'].values*1.96**2)**0.5]
+
+ax1.errorbar(df_VZN_2_u[IND_WE]['mE mean'].values,Z_2,xerr=patch_bounds_WE_2,yerr=CI95_bounds_WE_2,\
+			 fmt='.',capsize=5,label='$H_{bed}$(Laterally Varying Firn)',color='orange')
+
+ax2.errorbar(df_VZN_2_u[IND_NS]['mN mean'].values,Z_2,xerr=patch_bounds_NS_2,yerr=CI95_bounds_NS_2,\
+			 fmt='.',capsize=5,label='$H_{bed}$(Laterally Varying Firn)',color='orange')
+
+# ax1.errorbar(df_VZN_1_u[IND_WE]['mE mean'].values,df_VZN_1_u[IND_WE]['mH mean']-df_VZN_1_u[IND_WE]['Z m'],\
+# 			 xerr=[df_VZN_1_u[IND_WE]['mE mean'].values - df_VZN_1_m[IND_WE]['mE min'].values,\
+# 			       df_VZN_1_M[IND_WE]['mE max'].values - df_VZN_1_u[IND_WE]['mE mean'].values],\
+# 			 yerr=[df_VZN_1_u[IND_WE]['Z m'].values - df_VZN_1_m[IND_WE]['Z m'].values,\
+# 			 	   df_VZN_1_M[IND_WE]['Z m'].values - df_VZN_1_u[IND_WE]['Z m'].values],\
+# 			 	   fmt='.',capsize=5,label='$H_{bed}$(Uniform Firn)',color='dodgerblue')
+# ax1.errorbar(df_VZN_2_u[IND_WE]['mE mean'].values,df_VZN_2_u[IND_WE]['mH mean']-df_VZN_2_u[IND_WE]['Z m'],\
+# 			 xerr=[df_VZN_2_u[IND_WE]['mE mean'].values - df_VZN_2_m[IND_WE]['mE min'].values,\
+# 			       df_VZN_2_M[IND_WE]['mE max'].values - df_VZN_2_u[IND_WE]['mE mean'].values],\
+# 			 yerr=[df_VZN_2_u[IND_WE]['Z m'].values - df_VZN_2_m[IND_WE]['Z m'].values,\
+# 			 	   df_VZN_2_M[IND_WE]['Z m'].values - df_VZN_2_u[IND_WE]['Z m'].values],\
+# 			 	   fmt='.',capsize=5,label='$H_{bed}$(Laterally Varying Firn)',color='orange')
 
 
-ax2.errorbar(df_VZN_1_u[IND_NS]['mN mean'].values,df_VZN_1_u[IND_NS]['mH mean']-df_VZN_1_u[IND_NS]['Z m'],\
-			 xerr=[df_VZN_1_u[IND_NS]['mN mean'].values - df_VZN_1_m[IND_NS]['mN min'].values,\
-			       df_VZN_1_M[IND_NS]['mN max'].values - df_VZN_1_u[IND_NS]['mN mean'].values],\
-			 yerr=[df_VZN_1_u[IND_NS]['Z m'].values - df_VZN_1_m[IND_NS]['Z m'].values,\
-			 	   df_VZN_1_M[IND_NS]['Z m'].values - df_VZN_1_u[IND_NS]['Z m'].values],\
-			 	   fmt='.',capsize=5,label='$H_{bed}$(Uniform Firn)',color='dodgerblue')
-ax2.errorbar(df_VZN_2_u[IND_NS]['mN mean'].values,df_VZN_2_u[IND_NS]['mH mean']-df_VZN_2_u[IND_NS]['Z m'],\
-			 xerr=[df_VZN_2_u[IND_NS]['mN mean'].values - df_VZN_2_m[IND_NS]['mN min'].values,\
-			       df_VZN_2_M[IND_NS]['mN max'].values - df_VZN_2_u[IND_NS]['mN mean'].values],\
-			 yerr=[df_VZN_2_u[IND_NS]['Z m'].values - df_VZN_2_m[IND_NS]['Z m'].values,\
-			 	   df_VZN_2_M[IND_NS]['Z m'].values - df_VZN_2_u[IND_NS]['Z m'].values],\
-			 	   fmt='.',capsize=5,label='$H_{bed}$(Uniform Firn)',color='orange')
+# ax2.errorbar(df_VZN_1_u[IND_NS]['mN mean'].values,df_VZN_1_u[IND_NS]['mH mean']-df_VZN_1_u[IND_NS]['Z m'],\
+# 			 xerr=[df_VZN_1_u[IND_NS]['mN mean'].values - df_VZN_1_m[IND_NS]['mN min'].values,\
+# 			       df_VZN_1_M[IND_NS]['mN max'].values - df_VZN_1_u[IND_NS]['mN mean'].values],\
+# 			 yerr=[df_VZN_1_u[IND_NS]['Z m'].values - df_VZN_1_m[IND_NS]['Z m'].values,\
+# 			 	   df_VZN_1_M[IND_NS]['Z m'].values - df_VZN_1_u[IND_NS]['Z m'].values],\
+# 			 	   fmt='.',capsize=5,label='$H_{bed}$(Uniform Firn)',color='dodgerblue')
+# ax2.errorbar(df_VZN_2_u[IND_NS]['mN mean'].values,df_VZN_2_u[IND_NS]['mH mean']-df_VZN_2_u[IND_NS]['Z m'],\
+# 			 xerr=[df_VZN_2_u[IND_NS]['mN mean'].values - df_VZN_2_m[IND_NS]['mN min'].values,\
+# 			       df_VZN_2_M[IND_NS]['mN max'].values - df_VZN_2_u[IND_NS]['mN mean'].values],\
+# 			 yerr=[df_VZN_2_u[IND_NS]['Z m'].values - df_VZN_2_m[IND_NS]['Z m'].values,\
+# 			 	   df_VZN_2_M[IND_NS]['Z m'].values - df_VZN_2_u[IND_NS]['Z m'].values],\
+# 			 	   fmt='.',capsize=5,label='$H_{bed}$(Uniform Firn)',color='orange')
 
 
 # Plot Surface elevations from CMP's
