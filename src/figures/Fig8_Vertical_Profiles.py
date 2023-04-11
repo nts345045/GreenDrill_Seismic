@@ -112,11 +112,11 @@ bed_rng = [820,910]
 IND_WE = df_VZN_1_u['Data Slice'].astype(int).values > 350
 IND_NS = df_VZN_1_u['Data Slice'].astype(int).values <= 350
 
-Emin = df_VZN['mE min'].min() - 300
-Emax = df_VZN['mE max'].max() + 100
+# Emin = df_VZN['mE min'].min() - 300
+# Emax = df_VZN['mE max'].max() + 100
 
-Nmin = df_VZN['mN min'].min()
-Nmax = df_VZN['mN max'].max() + 300
+# Nmin = df_VZN['mN min'].min()
+# Nmax = df_VZN['mN max'].max() + 300
 
 # Initialize Plot
 plt.figure(figsize=(6.45,8.25))
@@ -147,7 +147,10 @@ ax2.fill_between(df_BM_NS['UTM19N mN'],df_BM_NS['Bed Elevation'].values - 30,df_
 
 
 # Plot Bed Elevations from Seismics
-Z_1 = df_VZN_1_u[IND_WE]['mH mean']-df_VZN_1_u[IND_WE]['Z m']
+# Plot Bed Elevations from Seismics
+Z_WE_1 = df_VZN_1_u[IND_WE]['mH mean']-df_VZN_1_u[IND_WE]['Z m']
+
+Z_NS_1 = df_VZN_1_u[IND_NS]['mH mean']-df_VZN_1_u[IND_NS]['Z m']
 
 patch_bounds_WE_1 = [df_VZN_1_u[IND_WE]['mE mean'].values - df_VZN_1_m[IND_WE]['mE min'].values,\
        			df_VZN_1_M[IND_WE]['mE max'].values - df_VZN_1_u[IND_WE]['mE mean'].values]
@@ -165,13 +168,17 @@ CI95_bounds_NS_1 = [((df_VZN_1_u[IND_NS]['Z m'].values - df_VZN_1_m[IND_NS]['Z m
 			 	 ((df_VZN_1_M[IND_NS]['Z m'].values - df_VZN_1_u[IND_NS]['Z m'].values)**2 +\
 			 	  df_VZN_1_u[IND_NS]['mH var'].values*1.96**2)**0.5]
 
-ax1.errorbar(df_VZN_1_u[IND_WE]['mE mean'].values,Z_1,xerr=patch_bounds_WE_1,yerr=CI95_bounds_WE_1,\
+ax1.errorbar(df_VZN_1_u[IND_WE]['mE mean'].values,Z_WE_1,xerr=patch_bounds_WE_1,yerr=CI95_bounds_WE_1,\
 			 fmt='.',capsize=5,label='$H_{bed}$(Uniform Firn)',color='dodgerblue')
 
-ax2.errorbar(df_VZN_1_u[IND_NS]['mN mean'].values,Z_1,xerr=patch_bounds_NS_1,yerr=CI95_bounds_NS_1,\
+ax2.errorbar(df_VZN_1_u[IND_NS]['mN mean'].values,Z_NS_1,xerr=patch_bounds_NS_1,yerr=CI95_bounds_NS_1,\
 			 fmt='.',capsize=5,label='$H_{bed}$(Uniform Firn)',color='dodgerblue')
 
-Z_2 = df_VZN_2_u[IND_WE]['mH mean']-df_VZN_2_u[IND_WE]['Z m']
+
+
+Z_WE_2 = df_VZN_2_u[IND_WE]['mH mean']-df_VZN_2_u[IND_WE]['Z m']
+
+Z_NS_2 = df_VZN_2_u[IND_NS]['mH mean']-df_VZN_2_u[IND_NS]['Z m']
 
 patch_bounds_WE_2 = [df_VZN_2_u[IND_WE]['mE mean'].values - df_VZN_2_m[IND_WE]['mE min'].values,\
        			df_VZN_2_M[IND_WE]['mE max'].values - df_VZN_2_u[IND_WE]['mE mean'].values]
@@ -189,10 +196,10 @@ CI95_bounds_NS_2 = [((df_VZN_2_u[IND_NS]['Z m'].values - df_VZN_2_m[IND_NS]['Z m
 			 	 ((df_VZN_2_M[IND_NS]['Z m'].values - df_VZN_2_u[IND_NS]['Z m'].values)**2 +\
 			 	  df_VZN_2_u[IND_NS]['mH var'].values*1.96**2)**0.5]
 
-ax1.errorbar(df_VZN_2_u[IND_WE]['mE mean'].values,Z_2,xerr=patch_bounds_WE_2,yerr=CI95_bounds_WE_2,\
+ax1.errorbar(df_VZN_2_u[IND_WE]['mE mean'].values,Z_WE_2,xerr=patch_bounds_WE_2,yerr=CI95_bounds_WE_2,\
 			 fmt='.',capsize=5,label='$H_{bed}$(Laterally Varying Firn)',color='orange')
 
-ax2.errorbar(df_VZN_2_u[IND_NS]['mN mean'].values,Z_2,xerr=patch_bounds_NS_2,yerr=CI95_bounds_NS_2,\
+ax2.errorbar(df_VZN_2_u[IND_NS]['mN mean'].values,Z_NS_2,xerr=patch_bounds_NS_2,yerr=CI95_bounds_NS_2,\
 			 fmt='.',capsize=5,label='$H_{bed}$(Laterally Varying Firn)',color='orange')
 
 # ax1.errorbar(df_VZN_1_u[IND_WE]['mE mean'].values,df_VZN_1_u[IND_WE]['mH mean']-df_VZN_1_u[IND_WE]['Z m'],\
@@ -228,8 +235,7 @@ ax2.errorbar(df_VZN_2_u[IND_NS]['mN mean'].values,Z_2,xerr=patch_bounds_NS_2,yer
 # ax2.plot(df_VZN_2_u['mN mean'],df_VZN_2_u['mH mean'],'k.')
 
 
-ax1.set_xlim([Emin - 300,Emax + 200])
-ax2.set_xlim([Nmin - 200,Nmax + 200])
+
 
 
 
@@ -240,13 +246,21 @@ df_STNS = df_SITE[df_SITE['Station'].isin(['NS01','NS02','NS03'])]
 ax1.plot(df_STWE['UTM19N Easting'].values,df_STWE['Elevation'].values,'bv',label='Receivers',markersize=2)
 ax2.plot(df_STNS['UTM19N Northing'].values,df_STNS['Elevation'].values,'bv',markersize=2)
 
-# PLot Shot Locations
+# Plot Shot Locations
 df_SHWE = df_SHOT[df_SHOT['Line_Orient']=='EW']
 df_SHNS = df_SHOT[df_SHOT['Line_Orient']=='SN']
 SHmE,_ = proj2(df_SHWE['SHOT_Lon'].values,df_SHWE['SHOT_Lat'].values)
 ax1.plot(SHmE,df_SHWE['SHOT_elev'].values,'r*',markersize=6,label='Shots')
 _,SHmN = proj2(df_SHNS['SHOT_Lon'].values,df_SHNS['SHOT_Lat'].values)
 ax2.plot(SHmN,df_SHNS['SHOT_elev'].values,'r*',markersize=6)
+
+Emin, Emax = np.min(SHmE),df_STWE['UTM19N Easting'].max()
+Nmin, Nmax = np.min(SHmN),df_STNS['UTM19N Northing'].max()
+
+ax1.set_xlim([Emin - 300,Emax + 200])
+ax2.set_xlim([Nmin - 200,Nmax + 200])
+
+
 
 
 # Plot Fir Models
