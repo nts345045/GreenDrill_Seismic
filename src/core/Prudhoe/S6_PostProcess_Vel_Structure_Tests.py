@@ -169,11 +169,8 @@ for i_ in tqdm(range(len(df_SUM))):
 	CMPcov = pD_[['CMP mE','CMP mN','CMP mH']].cov().values
 	# Compile output geometry line
 	line = [pD_['CMP mE'].mean(),pD_['CMP mN'].mean(),pD_['CMP mH'].mean(),\
-			pD_['CMP mE'].min(),pD_['CMP mN'].min(),pD_['CMP mH'].max(),\
-			pD_['CMP mE'].max(),pD_['CMP mN'].max(),pD_['CMP mH'].min(),\
-			pD_['CMP mE'].quantile(.5),pD_['CMP mN'].quantile(.5),pD_['CMP mH'].quantile(.5),\
-			pD_['CMP mE'].quantile(.025),pD_['CMP mN'].quantile(.025),pD_['CMP mH'].quantile(.025),\
-			pD_['CMP mE'].quantile(.975),pD_['CMP mN'].quantile(.975),pD_['CMP mH'].quantile(.975),\
+			pD_['CMP mE'].max(),pD_['CMP mN'].max(),pD_['CMP mH'].max(),\
+			pD_['CMP mE'].min(),pD_['CMP mN'].min(),pD_['CMP mH'].min(),\
 			CMPcov[0,0],CMPcov[1,1],CMPcov[2,2],CMPcov[0,1],CMPcov[0,2],CMPcov[1,2]]
 
 	CMP_stats.append(line)
@@ -182,9 +179,6 @@ for i_ in tqdm(range(len(df_SUM))):
 df_CMP = pd.DataFrame(CMP_stats,columns=['mE mean','mN mean','mH mean',\
 										 'mE max','mN max','mH max',\
 										 'mE min','mN min','mH min',\
-										 'mE med','mN med','mH med',\
-										 'mE Q025','mN Q025','mH Q025',\
-										 'mE Q975','mN Q975','mH Q975',\
 										 'mE var','mN var','mH var',\
 										 'mEmNcov','mEmHcov','mNmHcov'],\
 					  index=IND)
@@ -194,63 +188,116 @@ df_M = pd.concat([df_SUM,df_CMP],axis=1,ignore_index=False)
 
 df_M.to_csv(OMFILE,header=True,index=False)
 
-# Associate Data
-holder = []
-sets = df_M[['Experiment','Firn Model','Data Slice','Data Kind']].value_counts().index
-for EX_,FM_,DS_,DK_ in sets:
-	df_ = df_M[(df_M['Experiment']==EX_)&\
-			   (df_M['Firn Model']==FM_)&\
-			   (df_M['Data Kind']==DK_)&\
-			   (df_M['Data Slice']==DS_)]
-	if 'VFINE' in df_['Grid Resolution'].unique():
-		df_ = df_[df_['Grid Resolution']=='VFINE']
-	elif 'FINE' in df_['Grid Resolution'].unique():
-		df_ = df_[df_['Grid Resolution']=='FINE']
-	odict = {}
-	for FQ_ in ['Q025','mean','Q975']:
-		df_f = df_[df_['Firn Model Quantile']==FQ_]
+#### Create bed elevation estimate models
 
-		line=list(df_f[['Z m','VN m/s','IsEdge','Grid Resolution']].values[0][:])
+# Filter depth models
+df_M_1 = df_M[(df_M['Experiment']=='Ex1')&(df_M['Data Kind']==1)&\
+				(df_M['Grid Resolution']=='VFINE')]
+df_M_2 = df_M[(df_M['Experiment']=='Ex2')&(df_M['Data Kind']==1)&\
+				(df_M['Grid Resolution']=='VFINE')]
+# Filter into firn model subsets
+df_M_1_m = df_M_1[df_M_1['Firn Model Quantile']=='Q025'].sort_values('Data Slice')
+df_M_1_M = df_M_1[df_M_1['Firn Model Quantile']=='Q975'].sort_values('Data Slice')
+df_M_1_u = df_M_1[df_M_1['Firn Model Quantile']=='mean'].sort_values('Data Slice')
+# Filter into firn model subsets
+df_M_2_m = df_M_2[df_M_2['Firn Model Quantile']=='Q025'].sort_values('Data Slice')
+df_M_2_M = df_M_2[df_M_2['Firn Model Quantile']=='Q975'].sort_values('Data Slice')
+df_M_2_u = df_M_2[df_M_2['Firn Model Quantile']=='mean'].sort_values('Data Slice')
 
-		if FQ_ != 'mean':
-			 line += list(df_f.filter(like=FQ_).values[0][:])
-		else:
-			line += list(df_f[['mE mean','mN mean','mH mean']].values[0][:])
-		odict.update({FQ_:line})
-	odf = pd.DataFrame(odict,index=['Z m','VN m/s','IsEdge','Grid Resolution','mE','mN','mH'])
-	odf.to_csv(os.path.join(OMDIR,'{}_{}_{}_{}_summary.csv'.format(EX_,FM_,DS_,DK_)),header=True,index=True)
-	holder.append(odf.T)
 
-ODICT = dict(zip(sets,holder))
 
-marks = {'Ex0':'.','Ex1':'o','Ex2':'s'}
-# colors = {1:'k',2:'r'}
-colors = {'Ex0':'k','Ex1':'b','Ex2':'r'}
-lines = {'COARSE':':','FINE':'--','VFINE':'-'}
-for DK_ in [1]:
-	plt.figure()
-	for EX_,GR_ in df_M[['Experiment','Grid Resolution']].value_counts().index:
+Z_1 = df_M_1_u['mH mean']-df_M_1_u['Z m']
 
-		for S_,D_ in ODICT.items():	
-			if D_['IsEdge'].sum(axis=0) == 0 and S_[-1]==DK_ and S_[0]==EX_:
-				plt.subplot(221)
-				plt.plot(D_.loc['mean','mE']*np.ones(3),D_['mH'] - D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
-				plt.plot(D_['mE'],(D_.loc['mean','mH'] - D_.loc['mean','Z m'])*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
-				plt.subplot(222)
-				plt.plot(D_.loc['mean','mN']*np.ones(3),D_['mH'] - D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
-				plt.plot(D_['mN'],(D_.loc['mean','mH'] - D_.loc['mean','Z m'])*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
-				plt.subplot(223)
-				plt.plot(D_.loc['mean','mE']*np.ones(3),D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
-				plt.plot(D_['mE'],D_.loc['mean','Z m']*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
-				plt.subplot(224)
-				plt.plot(D_.loc['mean','mN']*np.ones(3),D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
-				plt.plot(D_['mN'],D_.loc['mean','Z m']*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
-	# plt.title('{} {}'.format(EX_,DK_))
-plt.subplot(221)
-plt.plot(df_M['mE mean'],df_M['mH mean'],'ks')
-plt.subplot(222)
-plt.plot(df_M['mN mean'],df_M['mH mean'],'ks')
+CI95_bounds_1 = [Z_1 - \
+					((df_M_1_u['Z m'].values - df_M_1_m['Z m'].values)**2 + \
+					 df_M_1_u['mH var'].values*1.96**2)**0.5,\
+			 	 Z_1 + \
+			 	 	((df_M_1_M['Z m'].values - df_M_1_u['Z m'].values)**2 + \
+			 	 	 df_M_1_u['mH var'].values*1.96**2)**0.5]
 
+
+df_UFM_out = pd.DataFrame({'Bed Elevation (mASL)':Z_1,'Q025 Z bed (m)':CI95_bounds_1[0],'Q975 Z bed (m)':CI95_bounds_1[1]})
+df_UFM_out = pd.concat([df_M_1,df_UFM_out],axis=1,ignore_index=False)
+df_UFM_out = df_UFM_out[df_UFM_out['Bed Elevation (mASL)'].notna()]
+
+
+df_UFM_out.to_csv(os.path.join(OMDIR,'Uniform_Firn_Bed_Elevation_Model.csv'),header=True,index=False)
+
+Z_2 = df_M_2_u['mH mean']-df_M_2_u['Z m']
+
+CI95_bounds_2 = [Z_2 - \
+					((df_M_2_u['Z m'].values - df_M_2_m['Z m'].values)**2 + \
+					 df_M_2_u['mH var'].values*1.96**2)**0.5,\
+			 	 Z_2 + \
+			 	 	((df_M_2_M['Z m'].values - df_M_2_u['Z m'].values)**2 + \
+			 	 	 df_M_1_u['mH var'].values*1.96**2)**0.5]
+
+df_VFM_out = pd.DataFrame({'Bed Elevation (mASL)':Z_2,'Q025 Z bed (m)':CI95_bounds_2[0],'Q975 Z bed (m)':CI95_bounds_2[1]})
+df_VFM_out = pd.concat([df_M_2,df_VFM_out],axis=1,ignore_index=False)
+df_VFM_out = df_VFM_out[df_VFM_out['Bed Elevation (mASL)'].notna()]
+
+df_VFM_out.to_csv(os.path.join(OMDIR,'Varying_Firn_Bed_Elevation_Model.csv'),header=True,index=False)
+
+
+
+
+
+# # Associate Data
+# holder = []
+# sets = df_M[['Experiment','Firn Model','Data Slice','Data Kind']].value_counts().index
+# for EX_,FM_,DS_,DK_ in sets:
+# 	df_ = df_M[(df_M['Experiment']==EX_)&\
+# 			   (df_M['Firn Model']==FM_)&\
+# 			   (df_M['Data Kind']==DK_)&\
+# 			   (df_M['Data Slice']==DS_)]
+# 	if 'VFINE' in df_['Grid Resolution'].unique():
+# 		df_ = df_[df_['Grid Resolution']=='VFINE']
+# 	elif 'FINE' in df_['Grid Resolution'].unique():
+# 		df_ = df_[df_['Grid Resolution']=='FINE']
+# 	odict = {}
+# 	for FQ_ in ['Q025','mean','Q975']:
+# 		df_f = df_[df_['Firn Model Quantile']==FQ_]
+
+# 		line=list(df_f[['Z m','VN m/s','IsEdge','Grid Resolution']].values[0][:])
+
+# 		if FQ_ != 'mean':
+# 			 line += list(df_f.filter(like=FQ_).values[0][:])
+# 		else:
+# 			line += list(df_f[['mE mean','mN mean','mH mean']].values[0][:])
+# 		odict.update({FQ_:line})
+# 	odf = pd.DataFrame(odict,index=['Z m','VN m/s','IsEdge','Grid Resolution','mE','mN','mH'])
+# 	odf.to_csv(os.path.join(OMDIR,'{}_{}_{}_{}_summary.csv'.format(EX_,FM_,DS_,DK_)),header=True,index=True)
+# 	holder.append(odf.T)
+
+# ODICT = dict(zip(sets,holder))
+
+# marks = {'Ex0':'.','Ex1':'o','Ex2':'s'}
+# # colors = {1:'k',2:'r'}
+# colors = {'Ex0':'k','Ex1':'b','Ex2':'r'}
+# lines = {'COARSE':':','FINE':'--','VFINE':'-'}
+# for DK_ in [1]:
+# 	plt.figure()
+# 	for EX_,GR_ in df_M[['Experiment','Grid Resolution']].value_counts().index:
+
+# 		for S_,D_ in ODICT.items():	
+# 			if D_['IsEdge'].sum(axis=0) == 0 and S_[-1]==DK_ and S_[0]==EX_:
+# 				plt.subplot(221)
+# 				plt.plot(D_.loc['mean','mE']*np.ones(3),D_['mH'] - D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
+# 				plt.plot(D_['mE'],(D_.loc['mean','mH'] - D_.loc['mean','Z m'])*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
+# 				plt.subplot(222)
+# 				plt.plot(D_.loc['mean','mN']*np.ones(3),D_['mH'] - D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
+# 				plt.plot(D_['mN'],(D_.loc['mean','mH'] - D_.loc['mean','Z m'])*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
+# 				plt.subplot(223)
+# 				plt.plot(D_.loc['mean','mE']*np.ones(3),D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
+# 				plt.plot(D_['mE'],D_.loc['mean','Z m']*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
+# 				plt.subplot(224)
+# 				plt.plot(D_.loc['mean','mN']*np.ones(3),D_['Z m'],colors[EX_]+marks[EX_]+lines[GR_])
+# 				plt.plot(D_['mN'],D_.loc['mean','Z m']*np.ones(3),colors[EX_]+marks[EX_]+lines[GR_])
+# 	# plt.title('{} {}'.format(EX_,DK_))
+# plt.subplot(221)
+# plt.plot(df_M['mE mean'],df_M['mH mean'],'ks')
+# plt.subplot(222)
+# plt.plot(df_M['mN mean'],df_M['mH mean'],'ks')
 
 
 
