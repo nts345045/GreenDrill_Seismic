@@ -470,9 +470,9 @@ OROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0')
 ICSV = os.path.join(MROOT,'Amplitude_Pick_File_Metadata_v5.csv')
 
 # SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd.csv')
-SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd_ELE_corr.csv')
+SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','PL_Shot_Record_QCd_ELE_corr.csv')
 # SITE = os.path.join(ROOT,'data','Combined_SITE_Table.csv')
-SITE = os.path.join(ROOT,'processed_data','Combined_SITE_Table_ELE_corr.csv')
+SITE = os.path.join(ROOT,'processed_data','PL_SITE_Table_ELE_corr.csv')
 GPSc = os.path.join(ROOT,'processed_data','GPS','Prudhoe_Elevation_Corrected_GPS_Tracks.csv')
 
 ## Load METADATA ##

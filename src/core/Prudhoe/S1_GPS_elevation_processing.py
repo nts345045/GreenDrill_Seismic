@@ -23,8 +23,8 @@ SITE = os.path.join(ROOT,'data','Combined_SITE_Table.csv')
 TRACK = os.path.join(ROOT,'data','GPS','Prudhoe_Tracks_Raw.csv')
 SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd.csv')
 ODIR = os.path.join(ROOT,'processed_data','GPS')
-OSITE = os.path.join(ROOT,'processed_data','Combined_SITE_Table_ELE_corr.csv')
-OSHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd_ELE_corr.csv')
+OSITE = os.path.join(ROOT,'processed_data','PL_SITE_Table_ELE_corr.csv')
+OSHOT = os.path.join(ROOT,'processed_data','Active_Seismic','PL_Shot_Record_QCd_ELE_corr.csv')
 
 ## DATA LOADING SECTION ##
 df_SITE = pd.read_csv(SITE,parse_dates=['Starttime','Endtime'])
