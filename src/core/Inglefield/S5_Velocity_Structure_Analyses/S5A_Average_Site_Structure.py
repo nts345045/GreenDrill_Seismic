@@ -48,15 +48,17 @@ apply_DT = False
 ######## DATA LOADING SECTION ########
 ### MAP FILE STRUCTURE ###
 # Main Directory
-ROOT = os.path.join('..','..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
+ROOT = os.path.join('..','..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Inglefield_Land')
 # Model Sub-Directory
 MROOT = os.path.join(ROOT,'velocity_models','structure_experiments')
 # Phase Data File
 DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured.csv')
 # Wiechert-Herglotz-Bateman Reference Model(s)
-UDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_WHB_ODR_LHSn100.csv')
+# UDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_WHB_ODR_LHSn100.csv')
+UDAT = os.path.join(ROOT,'velocity_models','Spread_WE01_v5_ele_MK2_ptO3_sutured_GeoRod_WHB_ODR_LHSn100.csv')
 # Reference KB79 Model
-CDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_KB79_ODR.csv')
+# CDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_KB79_ODR.csv')
+CDAT = os.path.join(ROOT,'velocity_models','Spread_WE01_v5_ele_MK2_ptO3_sutured_GeoRod_KB79_ODR.csv')
 
 ### Load Phase Pick Data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
@@ -107,7 +109,7 @@ for fld_ in ['mean','Q025','Q975']:
 
 	### SAVE COARSE MODEL SUMMARY TO DISK ###
 	if issave:
-		df_GSc.to_csv(os.path.join(MROOT,'S5A_COARSE_%s_Average_Firn_Model_Average_Deep_Structure.csv'%(fld_)),header=True,index=False)
+		df_GSc.to_csv(os.path.join(MROOT,'S5A_COARSE_%s_WE01_Firn_Model_Average_Deep_Structure.csv'%(fld_)),header=True,index=False)
 
 	# Fetch best-fit model in the L-2 norm minimization sense
 	IBEST = df_GSc['res L2']==df_GSc['res L2'].min()
@@ -123,7 +125,7 @@ for fld_ in ['mean','Q025','Q975']:
 			
 	### SAVE FINE MODEL SUMMARY TO DISK ###
 	if issave:
-		df_GSf.to_csv(os.path.join(MROOT,'S5A_FINE_%s_Average_Firn_Model_Average_Deep_Structure.csv'%(fld_)),header=True,index=False)
+		df_GSf.to_csv(os.path.join(MROOT,'S5A_FINE_%s_WE01_Firn_Model_Average_Deep_Structure.csv'%(fld_)),header=True,index=False)
 
 
 

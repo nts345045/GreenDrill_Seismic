@@ -48,17 +48,17 @@ apply_DT = False
 ######## DATA LOADING SECTION ########
 ### MAP FILE STRUCTURE ###
 # Main Directory
-ROOT = os.path.join('..','..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
+ROOT = os.path.join('..','..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Inglefield_Land')
 # Model Sub-Directory
 MROOT = os.path.join(ROOT,'velocity_models','structure_experiments')
 # Phase Data File
 DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured.csv')
 # Wiechert-Herglotz-Bateman Reference Model(s)
-UDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_WHB_ODR_LHSn100.csv')
+# UDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_WHB_ODR_LHSn100.csv')
+UDAT = os.path.join(ROOT,'velocity_models','Spread_WE01_v5_ele_MK2_ptO3_sutured_GeoRod_WHB_ODR_LHSn100.csv')
 # Reference KB79 Model
-CDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_KB79_ODR.csv')
-
-
+# CDAT = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_KB79_ODR.csv')
+CDAT = os.path.join(ROOT,'velocity_models','Spread_WE01_v5_ele_MK2_ptO3_sutured_GeoRod_KB79_ODR.csv')
 ### Load Phase Pick Data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 ### Load WHB Model for Average Firn Structure
@@ -75,7 +75,7 @@ else:
 # for fld_ in ['mean','Q025','Q975']:
 for fld_ in ['Q975']:
 	### Load relevant deep model from ensemble average
-	df_VZN = pd.read_csv(os.path.join(MROOT,'S5A_FINE_%s_Average_Firn_Model_Average_Deep_Structure.csv'%(fld_)))
+	df_VZN = pd.read_csv(os.path.join(MROOT,'S5A_FINE_%s_WE01_Firn_Model_Average_Deep_Structure.csv'%(fld_)))
 	# Get best-fit ZN and VN values
 	IBEST = df_VZN['res L2'] == df_VZN['res L2'].min()
 	VNo = df_VZN[IBEST]['VN m/s'].values[0]
@@ -116,7 +116,7 @@ for fld_ in ['Q975']:
 
 			### SAVE COARSE MODEL SUMMARY TO DISK ###
 			if issave:
-				df_ZSc.to_csv(os.path.join(MROOT,'S5B_Ex1_COARSE_%s_Average_Firn_Model_%s_Depth_Fit_K%d.csv'%(fld_,SP_,KD_)),header=True,index=False)
+				df_ZSc.to_csv(os.path.join(MROOT,'S5B_Ex1_COARSE_%s_WE01_Firn_Model_%s_Depth_Fit_K%d.csv'%(fld_,SP_,KD_)),header=True,index=False)
 
 			# Fetch best-fit model in the L-2 norm minimization sense
 			IBEST = df_ZSc['res L2']==df_ZSc['res L2'].min()
@@ -130,7 +130,7 @@ for fld_ in ['Q975']:
 			df_ZSf, res_ZSf = d1d.raytracing_Zsearch(xx,tt,Z_Nfv,Uwhb,Zwhb,VN=VNo,full=True)
 			### SAVE FINE MODEL SUMMARY TO DISK ###
 			if issave:
-				df_ZSf.to_csv(os.path.join(MROOT,'S5B_Ex1_FINE_%s_Average_Firn_Model_%s_Depth_Fit_K%d.csv'%(fld_,SP_,KD_)),header=True,index=False)
+				df_ZSf.to_csv(os.path.join(MROOT,'S5B_Ex1_FINE_%s_WE01_Firn_Model_%s_Depth_Fit_K%d.csv'%(fld_,SP_,KD_)),header=True,index=False)
 
 			JBEST = df_ZSf['res L2']==df_ZSf['res L2'].min()
 			Z_Nf = df_ZSf[JBEST]['Z m'].values[0]
@@ -143,7 +143,7 @@ for fld_ in ['Q975']:
 				Z_Nvfv = np.linspace(Z_Nf - VFINE_dZN, Z_Nf + VFINE_dZN,VFINE_NODES)
 				df_ZSvf, res_ZSvf = d1d.raytracing_Zsearch(ixx,itt,Z_Nvfv,Uwhb,Zwhb,VN=VNo,full=True)
 				if issave:
-					df_ZSvf.to_csv(os.path.join(MROOT,'S5B_Ex1_VFINE_%s_Average_Firn_Model_%s_shot_%d_Depth_Fit_K%d.csv'%(fld_,SP_,SH_,KD_)),header=True,index=False)
+					df_ZSvf.to_csv(os.path.join(MROOT,'S5B_Ex1_VFINE_%s_WE01_Firn_Model_%s_shot_%d_Depth_Fit_K%d.csv'%(fld_,SP_,SH_,KD_)),header=True,index=False)
 
 
 
