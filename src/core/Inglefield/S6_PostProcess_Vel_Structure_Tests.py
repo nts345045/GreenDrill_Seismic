@@ -89,7 +89,7 @@ ROOT = os.path.join('..','..','..','..','..')
 MROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0','Inglefield_Land')
 # glob STRINGS
 GSTR1 = os.path.join(MROOT,'velocity_models','structure_experiments','S5A*.csv')
-GSTR2 = os.path.join(MROOT,'velocity_models','structure_experiments','S5B*K?.csv')
+# GSTR2 = os.path.join(MROOT,'velocity_models','structure_experiments','S5B*K?.csv')
 # Phase Travel-time v Offset data
 DPHZ = os.path.join(MROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 # Station locations
@@ -104,7 +104,7 @@ OMFILE = os.path.join(OMDIR,'Ice_Thickness_Models.csv')
 
 ## Load SITE Locations ##
 df_SITE = pd.read_csv(SITE,parse_dates=['Starttime','Endtime'])
-df_SITE = df_SITE[df_SITE['Network']=='PL']
+df_SITE = df_SITE[df_SITE['Network']=='IL']
 ## Load GPSc Data ##
 df_GPSc = pd.read_csv(GPSc,parse_dates=['time'],index_col=[0])
 
@@ -121,22 +121,23 @@ for f_ in flist1:
 
 df_SUM1 = pd.DataFrame(table1,columns=dout.keys())
 
-# Extract Spread/Shot specific Modeling Results
-flist2 = glob(GSTR2)
-table2 = []
-for f_ in flist2:
-	df_mod, dmeta = read_ZN_experiment(f_)
-	dout = find_bestfit(df_mod,dmeta,method='res L2')
-	line = list(dout.values())
-	table2.append(line)
+# # Extract Spread/Shot specific Modeling Results
+# flist2 = glob(GSTR2)
+# table2 = []
+# for f_ in flist2:
+# 	df_mod, dmeta = read_ZN_experiment(f_)
+# 	dout = find_bestfit(df_mod,dmeta,method='res L2')
+# 	line = list(dout.values())
+# 	table2.append(line)
 
-df_SUM2 = pd.DataFrame(table2,columns=dout.keys()) 
+# df_SUM2 = pd.DataFrame(table2,columns=dout.keys()) 
 
 # Load Phase Data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 df_picks = df_picks[df_picks['SRoff m'].notna()]
 # Compile Model Summaries
-df_SUM = pd.concat([df_SUM1,df_SUM2],axis=0,ignore_index=True)
+# df_SUM = pd.concat([df_SUM1,df_SUM2],axis=0,ignore_index=True)
+df_SUM = df_SUM1
 
 # Iterate across each model and estimate the area of the bed reflection
 # based on shot-receiver midpoint coordinates calculated in STEP1
