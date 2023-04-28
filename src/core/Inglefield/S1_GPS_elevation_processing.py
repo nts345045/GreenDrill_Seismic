@@ -23,8 +23,8 @@ SITE = os.path.join(ROOT,'data','Combined_SITE_Table.csv')
 TRACK = os.path.join(ROOT,'data','GPS','Inglefield_Tracks_Raw.csv')
 SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd.csv')
 ODIR = os.path.join(ROOT,'processed_data','GPS')
-OSITE = os.path.join(ROOT,'processed_data','Combined_SITE_Table_ELE_corr.csv')
-OSHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd_ELE_corr.csv')
+OSITE = os.path.join(ROOT,'processed_data','IL_SITE_Table_ELE_corr.csv')
+OSHOT = os.path.join(ROOT,'processed_data','Active_Seismic','IL_Shot_Record_QCd_ELE_corr.csv')
 
 ## DATA LOADING SECTION ##
 df_SITE = pd.read_csv(SITE,parse_dates=['Starttime','Endtime'])
@@ -37,12 +37,11 @@ df_GPS = df_GPS[['lat','lon','ele']]
 # Import Shot Data
 df_SHOT = pd.read_csv(SHOT)
 # Filter for just Prudhoe Dome
-df_SHOT = df_SHOT[df_SHOT['Site']=='Hiawath']
+df_SHOT = df_SHOT[df_SHOT['Site']=='Hiawatha']
 
-breakpoint()
-
-DZ_ABS = 1388 - 1296 # [m] Elevation offset for the intersection of WE and NS from GPS/Nodes relative
-					 # to the elevation reported in BedMachine.
+lon0,lat0,ele0 = df_SITE[df_SITE['Station']=='PR07'][['Longitude','Latitude','Elevation']].values[0,:]
+DZ_ABS = 1166.4 - ele0 # [m] Elevation offset for the intersection of WE and NS from GPS/Nodes relative
+					   # to the elevation reported in BedMachine.
 
 ### START OF PROCESSING ###
 # Get UTM19N equivalents for GPS tracks
@@ -53,11 +52,9 @@ df_GPS = pd.concat([df_GPS,pd.DataFrame({'UTM19N mE':mE,'UTM19N mN':mN},index=df
 # Define sampling window length for doing corrections
 DT_corr = pd.Timedelta(1,unit='hour')
 # Define periods to process
-track_pds=[(pd.Timestamp("2022-04-22T10:20+0000"),pd.Timestamp("2022-04-22T17:35+000")),\
-		   (pd.Timestamp("2022-04-22T18:00+0000"),pd.Timestamp("2022-04-23T12:35+0000")),\
-		   (pd.Timestamp("2022-04-26T19:23+0000"),pd.Timestamp("2022-04-26T19:57+0000")),\
-		   (pd.Timestamp("2022-04-27T02:17+0000"),pd.Timestamp("2022-04-27T04:10+0000")),\
-		   (pd.Timestamp("2022-04-27T12:15+0000"),pd.Timestamp("2022-04-27T19:50+0000"))]
+track_pds = [(pd.Timestamp('2022-04-29T17:05+0000'),pd.Timestamp('2022-04-29T23:57+0000')),\
+			 (pd.Timestamp('2022-05-01T16:53+0000'),pd.Timestamp('2022-05-01T20:00:15+0000'))]#,\
+			 # (pd.Timestamp('2022-05-01T23:30:15+0000'),pd.Timestamp('2022-05-02T00:55+0000'))]
 
 ## RUN INITIAL PROCESSING (SUBSETTING) ##
 # Trim down GPS track data to specified periods
@@ -70,7 +67,7 @@ for t1_,t2_ in track_pds:
 plt.figure()
 plt.subplot(211)
 plt.plot(df_GPS['ele'],label='RAW')
-plt.plot(df_GPSf['ele'],label='Trimmed')
+plt.plot(df_GPSf['ele'],'.',label='Trimmed')
 plt.ylabel('Elevation (m)')
 plt.xlabel('UTC Date Time')
 plt.title('Handheld GPS Data')
@@ -92,6 +89,7 @@ plt.plot(df_SHOT['SHOT_Lat'],df_SHOT['SHOT_elev'],'m*',label='Shots (raw)')
 plt.xlabel('Latitude [$^oN$]')
 plt.ylabel('Elevation [m ASL]')
 
+
 plt.figure()
 ## PROCESS DATA IN DT_corr length windows ##
 corrections = {}
@@ -103,7 +101,7 @@ for t1_,t2_ in track_pds:
 		# Filter GPS data by time
 		idf_G = df_GPSf[(df_GPSf.index >= it1_)&(df_GPSf.index < it2_)]
 		# Slightly smooth/perturb data (prevents infinite weighting from same point)
-		idf_Gs = idf_G.rolling(pd.Timedelta(1,unit='min')).mean()
+		idf_Gs = idf_G.rolling(pd.Timedelta(5,unit='min')).mean()
 		# Use IDW smoothing on perturbed data locations
 		z_smooth = gt.llh_idw(idf_G['lon'].values,idf_G['lat'].values,idf_G['ele'].values,\
 							  idf_Gs['lon'].values,idf_Gs['lat'].values,power=1)
@@ -139,7 +137,7 @@ for t1_,t2_ in track_pds:
 			idZv = np.nan
 
 		# Apply corrections
-		df_c = pd.DataFrame(z_smooth + np.mean(idZv) + DZ_ABS,index=idf_G.index,columns=['mean(dZ)'])
+		df_c = pd.DataFrame(z_smooth + np.mean(idZv),index=idf_G.index,columns=['mean(dZ)'])
 		df_ele_corr = pd.concat([df_ele_corr,df_c],axis=0,ignore_index=False)
 plt.subplot(212)
 plt.xlabel('Longitude [$^oE$]')
@@ -157,9 +155,7 @@ df_GPSc = df_GPSc[df_GPSc['mean(dZ)'].notna()]
 
 ### GEOROD AND STATION ELEVATION CORRECTION SECTION ###
 
-# Write corrected data to file
-df_GPSc.to_csv(os.path.join(ODIR,'Prudhoe_Elevation_Corrected_GPS_Tracks.csv'),\
-			   header=True,index=True)
+
 
 # Update SITE data
 onlynodes = False
@@ -171,19 +167,26 @@ df_NO = df_SITE[df_SITE['Channel'].isin(['GNZ','GN1','GN2'])]
 lon = np.r_[df_NO['Longitude'].values,df_GPSc['lon'].values]
 lat = np.r_[df_NO['Latitude'].values,df_GPSc['lat'].values]
 ele = np.r_[df_NO['Elevation'].values,df_GPSc['mean(dZ)'].values]
+
 # Calculate IDW interpolated elevations for GeoRod locations
-g_ELE_corr = gt.llh_idw(lon,lat,ele,df_GR['Longitude'].values,df_GR['Latitude'].values,power=2)
+g_ELE_corr = gt.llh_idw(lon,lat,ele,df_GR['Longitude'].values,df_GR['Latitude'].values,power=2) + DZ_ABS
+# Apply absolute elevation correction to nodes
+n_ELE_corr = df_NO['Elevation'].values + DZ_ABS
+
 
 # Overwrite Elevations
 df_GR.loc[:,'Elevation'] = g_ELE_corr
+df_NO.loc[:,'Elevation'] = n_ELE_corr
+df_GPSc.loc[:,'mean(dZ)'] = df_GPSc.loc[:,'mean(dZ)'] + DZ_ABS
+df_GPS2 = df_GPSc.copy()
 ## Create new SITE table ##
 df_SITE2 = pd.concat([df_NO,df_GR],axis=0,ignore_index=False)
 
 
 # Update SHOT data
-s_ELE_corr = gt.llh_idw(lon,lat,ele,df_SHOT['SHOT_Lon'].values,df_SHOT['SHOT_Lat'].values,power=2)
+s_ELE_corr = gt.llh_idw(lon,lat,ele,df_SHOT['SHOT_Lon'].values,df_SHOT['SHOT_Lat'].values,power=1) + DZ_ABS
 # Update Geode Co-Located Node Locations
-r_ELE_corr = gt.llh_idw(lon,lat,ele,df_SHOT['REC_lon'].values,df_SHOT['REC_lat'].values,power=2)
+r_ELE_corr = gt.llh_idw(lon,lat,ele,df_SHOT['REC_lon'].values,df_SHOT['REC_lat'].values,power=1) + DZ_ABS
 
 ## Re-Insert
 df_SHOT2 = df_SHOT.copy()
@@ -192,7 +195,7 @@ df_SHOT2.loc[:,'REC_ele'] = r_ELE_corr
 # Update 
 
 
-vbnds = {'vmin':1260,'vmax':1320}
+vbnds = {'vmin':1150,'vmax':1180}
 plt.figure()
 plt.subplot(223)
 plt.scatter(df_GPSc['lon'].values,df_GPSc['mean(dZ)'].values,c=df_GPSc['lat'])
@@ -211,6 +214,7 @@ plt.subplot(221)
 plt.scatter(df_GPSc['lat'].values,df_GPSc['mean(dZ)'].values,c=df_GPSc['lon'])
 plt.plot(df_SITE['Latitude'],df_SITE['Elevation'],'rv',label='Input GeoRod')
 plt.plot(df_GR['Latitude'],df_GR['Elevation'],'cv',label='Corrected GeoRod')
+plt.plot(df_NO['Latitude'],df_NO['Elevation'],'cs',label='Corrected Node')
 plt.plot(df_SHOT['SHOT_Lat'],df_SHOT['SHOT_elev'],'r*',label='Input Shot')
 plt.plot(df_SHOT2['SHOT_Lat'],df_SHOT2['SHOT_elev'],'b*',label='Corrected Shot')
 plt.plot(df_SHOT['REC_lat'],df_SHOT['REC_ele'],'rs',label='Input GCR2K')
@@ -236,6 +240,10 @@ plt.colorbar()
 plt.xlabel('Longitude [$^oE$]')
 plt.ylabel('Latitude [$^oN$]')
 
+
+# Write corrected data to file
+df_GPS2.to_csv(os.path.join(ODIR,'IL_Elevation_Corrected_GPS_Tracks.csv'),\
+			   header=True,index=True)
 # Write UPDATED SITE to disk
 df_SITE2.to_csv(OSITE,header=True,index=False)
 # Write UPDATED SHOT to disk

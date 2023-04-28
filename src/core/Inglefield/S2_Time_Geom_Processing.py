@@ -458,9 +458,10 @@ def run_pick_concat():
 	for i_ in range(len(df_META)):
 		# Get subset metadata series
 		S_i = df_META.iloc[i_,:]
-		# Conduct 
-		df_iout = smf2df(MROOT,S_i,df_SITE,df_SHOT,df_GPSc)
-		df_out = pd.concat([df_out,df_iout],axis=0,ignore_index=True)
+		if S_i['Include']:
+			# Conduct 
+			df_iout = smf2df(MROOT,S_i,df_SITE,df_SHOT,df_GPSc)
+			df_out = pd.concat([df_out,df_iout],axis=0,ignore_index=True)
 	return df_out
 
 ##### ACTUAL PROCESSING #####
@@ -470,20 +471,20 @@ OROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0')
 ICSV = os.path.join(MROOT,'Amplitude_Pick_File_Metadata_v5.csv')
 
 # SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd.csv')
-SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd_ELE_corr.csv')
+SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','IL_Shot_Record_QCd_ELE_corr.csv')
 # SITE = os.path.join(ROOT,'data','Combined_SITE_Table.csv')
-SITE = os.path.join(ROOT,'processed_data','Combined_SITE_Table_ELE_corr.csv')
-GPSc = os.path.join(ROOT,'processed_data','GPS','Prudhoe_Elevation_Corrected_GPS_Tracks.csv')
+SITE = os.path.join(ROOT,'processed_data','IL_SITE_Table_ELE_corr.csv')
+GPSc = os.path.join(ROOT,'processed_data','GPS','IL_Elevation_Corrected_GPS_Tracks.csv')
 
 ## Load METADATA ##
 df_META = pd.read_csv(ICSV)
-df_META = df_META[df_META['Site']=='Prudhoe']
+df_META = df_META[df_META['Site']=='Hiawatha']
 ## Load SHOT Locations ##
 df_SHOT = pd.read_csv(SHOT)
-df_SHOT = df_SHOT[df_SHOT['Site']=='Prudhoe']
+df_SHOT = df_SHOT[df_SHOT['Site']=='Hiawatha']
 ## Load SITE Locations ##
 df_SITE = pd.read_csv(SITE,parse_dates=['Starttime','Endtime'])
-df_SITE = df_SITE[df_SITE['Network']=='PL']
+df_SITE = df_SITE[df_SITE['Network']=='HI']
 ## Load GPSc Data ##
 df_GPSc = pd.read_csv(GPSc,parse_dates=['time'],index_col=[0])
 
@@ -498,9 +499,9 @@ isplot = True
 
 ### SURVEY SPECIFIC PROCESSING ARGUMENTS ###
 # Define Reference Stations for Each Shot
-REF_NODES = {'NS01':['GCR2K','PR12','PR04'],'NS02':['GCR2K','PR04'],\
-			 'NS03':['GCR2K','PR04','PR01'],'WE01':['PR04','PR03'],\
-			 'WE02':['GCR2K','PR03'],'WE03':['GCR2K','PR03','PR10']}
+REF_NODES = {'NS01':['PR10','PR11','PR12'],'NS02':['PR11','PR12','PR13'],\
+			 'NS03':['PR12','PR13','PR07'],'WE01':['PR08','PR07','PR06'],\
+			 'WE02':['PR07','PR06','PR05'],'WE03':['PR06','PR05','PR04']}
 
 # Zero-offset shots to process only using channels 25Z-48Z 
 ZO_TROUBLE_LIST = [307,308,319,352,396]
@@ -613,7 +614,7 @@ if isplot:
 # Clear out spurious Event line entries, if any
 df = df[df['type']=='Phase']
 
-df.to_csv(os.path.join(OROOT,'Prudhoe_Dome','Corrected_Phase_Picks_v5_ele_MK2_pfO%d.csv'%(fit_poly)),header=True,index=False)
+df.to_csv(os.path.join(OROOT,'Inglefield_Land','Corrected_Phase_Picks_v5_ele_MK2_pfO%d.csv'%(fit_poly)),header=True,index=False)
 
 # ### PRUDHOE DOME PROCESSING ###
 

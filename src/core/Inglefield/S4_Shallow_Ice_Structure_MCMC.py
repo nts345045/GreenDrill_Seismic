@@ -221,7 +221,7 @@ no_0_offset_data = False
 isplot = False
 
 ### MAP DATA ###
-ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
+ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Inglefield_Land')
 OROOT = os.path.join(ROOT,'velocity_models')
 DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured.csv')
 
@@ -230,6 +230,10 @@ df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 # Subset diving-wave arrivals of interest
 pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&\
 			   (df_picks['kind'].isin([1,2]))&(df_picks['SRoff m'] > 10)]
+
+
+# NS01 fails to settle, filter out for now
+# df_picks = df_picks[df_picks['spread']!='NS01']
 
 if no_0_offset_data:
 	pD_ = pD_[pD_['offset code'] > 0]
@@ -251,6 +255,7 @@ else:
 	bounds = (0.,np.inf)
 
 # Get shallow structure model
+print('Running FULL')
 output,df_uD,df_z,df_X = run_WHB_lhs(xx,tt,xsig,tsig,n_draw=n_draw,KB79_ext=KB79_ext_bool,bounds=bounds)
 # breakpoint()
 # Conduct post-processing and write shallow structure model to disk
@@ -292,10 +297,13 @@ cid = ['blue','red','m','dodgerblue','g','orange']
 SP_Sort = df_picks['spread'].unique()
 SP_Sort.sort()
 for i_,SP_ in enumerate(SP_Sort):
+	print("Running {}".format(SP_))
 	# Subset diving-wave arrivals of interest
 	pD_ = df_picks[(df_picks['phz']=='P')&(df_picks['SRoff m'].notna())&\
 				   (df_picks['kind']==1)&(df_picks['SRoff m'] > 3)&(df_picks['spread']==SP_)&\
 				   (df_picks['itype']=='GeoRod')]
+	# breakpoint()
+
 	if no_0_offset_data:
 		pD_ = pD_[pD_['offset code'] > 0]
 
@@ -312,6 +320,7 @@ for i_,SP_ in enumerate(SP_Sort):
 	# Get shallow structure model
 	outputi,df_uDi,df_zi,df_Xi = run_WHB_lhs(ixx,itt,ixsig,itsig,n_draw=n_draw,KB79_ext=KB79_ext_bool,bounds=bounds)
 	# Conduct post-processing and write shallow structure model to disk
+
 	if KB79_ext_bool:
 		idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v5_ele_MK2_ptO3_sutured_GeoRod_KB_ext'%(SP_),\
 												outputi['output'],df_uDi,df_zi,df_Xi,n_draw,KB79_ext=KB79_ext_bool,\
@@ -319,7 +328,8 @@ for i_,SP_ in enumerate(SP_Sort):
 	else:
 		idf_MOD,idf_beta = PP_WHB_write_outputs(OROOT,'Spread_%s_v5_ele_MK2_ptO3_sutured_GeoRod'%(SP_),\
 												outputi,df_uDi,df_zi,df_Xi,n_draw,KB79_ext=KB79_ext_bool)
-
+	# if SP_ == 'NS01':
+	# 	breakpoint()
 	k_ = 0
 	for fmt,X_,Y_ in [('-','median u(z)','median z'),(':','Q025 u(z)','Q025 z'),(':','Q975 u(z)','Q975 z')]:
 		if k_ == 0:

@@ -22,11 +22,11 @@ import util.KB_WHB_Inversion as kwi
 
 
 ### MAP DATA ###
-ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
+ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Inglefield_Land')
 DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 OFILE = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured.csv')
 issave = True
-isplot = False
+isplot = True
 # Read in Phase Picks
 df = pd.read_csv(DPHZ,parse_dates=['time'])
 # Subset to GeoRods for use in analyses
@@ -77,7 +77,8 @@ for SP_ in df_G['spread'].unique():
 		# 	breakpoint()
 		# Now subset data to be updated
 		jdf = df_J[df_J['offset code']==(OC_-1)]
-
+		if len(jdf['shot #'].unique()) > 1:
+			breakpoint()
 		# Sanity check that we have data
 		if len(idf) > 0 and len(jdf) > 0:
 			# Sanity check for multiple shots with the same offset code
@@ -116,16 +117,18 @@ for SP_ in df_G['spread'].unique():
 					breakpoint()
 				if isplot and plotlevel > 1:
 					plt.figure()
-					plt.title('{} {} {}-{}'.format(SP_,SH_,OC_,OC_-1))
-					plt.plot(idf['SRoff m'],idf['tt sec'],'b.',label='Node,Raw')
-					plt.plot(jdf['SRoff m'],jdf['tt sec'],'k.',label='GeoRod,Raw')
+					plt.title('{} {} {}-{} {}:{}'.format(SP_,SH_,OC_,OC_-1,idf['shot #'].unique(),jdf['shot #'].unique()))
+					plt.plot(idf['SRoff m'],idf['tt sec'],'b.',label=idf['shot #'].unique()[0])
+					plt.plot(jdf['SRoff m'],jdf['tt sec'],'k.',label=jdf['shot #'].unique()[0])
 					# plt.plot(xi,ti,'bo')
 					# plt.plot(xj,tj,'k*')
 					plt.plot(xj,tj + dt_hat,'rv',label='GeoRod,Shifted Tiepoints')
 
 				# Update times for jdf
-				jdf.loc[jdf['shot #']==SH_,'tt sec'] = jdf.loc[jdf['shot #']==SH_,'tt sec'].values + dt_hat
-
+				if np.isfinite(dt_hat):
+					jdf.loc[jdf['shot #']==SH_,'tt sec'] = jdf.loc[jdf['shot #']==SH_,'tt sec'].values + dt_hat
+				else:
+					breakpoint()
 				if isplot and plotlevel > 1:
 					plt.plot(jdf['SRoff m'],jdf['tt sec'],'r.',label='GeoRod,Updated')
 					plt.legend()
