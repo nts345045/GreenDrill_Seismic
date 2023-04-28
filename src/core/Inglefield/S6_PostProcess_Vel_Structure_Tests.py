@@ -86,16 +86,16 @@ def find_bestfit(df_mod,dmeta,method='res L2'):
 
 # ROOT DIRECTORY
 ROOT = os.path.join('..','..','..','..','..')
-MROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
+MROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0','Inglefield_Land')
 # glob STRINGS
 GSTR1 = os.path.join(MROOT,'velocity_models','structure_experiments','S5A*.csv')
 GSTR2 = os.path.join(MROOT,'velocity_models','structure_experiments','S5B*K?.csv')
 # Phase Travel-time v Offset data
 DPHZ = os.path.join(MROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 # Station locations
-SITE = os.path.join(ROOT,'processed_data','Combined_SITE_Table_ELE_corr.csv')
+SITE = os.path.join(ROOT,'processed_data','IL_SITE_Table_ELE_corr.csv')
 # Handheld GPS Tracks
-GPSc = os.path.join(ROOT,'processed_data','GPS','Prudhoe_Elevation_Corrected_GPS_Tracks.csv')
+GPSc = os.path.join(ROOT,'processed_data','GPS','IL_Elevation_Corrected_GPS_Tracks.csv')
 # Output Master compiled dataframe
 OMDIR = os.path.join(MROOT,'velocity_models','structure_summary')
 OMFILE = os.path.join(OMDIR,'Ice_Thickness_Models.csv')
