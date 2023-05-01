@@ -26,7 +26,7 @@ ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','
 DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 OFILE = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured.csv')
 issave = True
-isplot = True
+isplot = False
 # Read in Phase Picks
 df = pd.read_csv(DPHZ,parse_dates=['time'])
 # Subset to GeoRods for use in analyses
@@ -175,6 +175,8 @@ for SP_,OC_ in UNPROCESSED:
 	df_OUT = pd.concat([df_OUT,df_U],axis=0,ignore_index=False)
 	print('OUT is %d long'%(len(df_OUT)))
 
+# Append node data to output
+df_OUT = pd.concat([df_OUT,df_N],axis=0,ignore_index=False)
 
 
 

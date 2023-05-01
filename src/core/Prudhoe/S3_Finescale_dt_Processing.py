@@ -173,6 +173,8 @@ for SP_,OC_ in UNPROCESSED:
 	print('OUT is %d long'%(len(df_OUT)))
 
 
+# Append node data to output
+df_OUT = pd.concat([df_OUT,df_N],axis=0,ignore_index=False)
 
 
 #### SAVE IT ####
