@@ -72,8 +72,8 @@ else:
 	KB_DT = 0.
 
 # Iterate across perturbed firn models
-# for fld_ in ['mean','Q025','Q975']:
-for fld_ in ['Q975']:
+for fld_ in ['mean','Q025','Q975']:
+# for fld_ in ['Q975']:
 	### Load relevant deep model from ensemble average
 	df_VZN = pd.read_csv(os.path.join(MROOT,'S5A_FINE_%s_WE01_Firn_Model_Average_Deep_Structure.csv'%(fld_)))
 	# Get best-fit ZN and VN values
