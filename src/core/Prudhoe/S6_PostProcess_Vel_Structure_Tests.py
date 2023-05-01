@@ -216,7 +216,8 @@ CI95_bounds_1 = [Z_1 - \
 			 	 	 df_M_1_u['mH var'].values*1.96**2)**0.5]
 
 
-df_UFM_out = pd.DataFrame({'Bed Elevation (mASL)':Z_1,'Q025 Z bed (m)':CI95_bounds_1[0],'Q975 Z bed (m)':CI95_bounds_1[1]})
+df_UFM_out = pd.DataFrame({'Ice thickness (m)':df_M_1_u['Z m'],'Q025 Zice':df_M_1_m['Z m'].values,'Q975 Zice':df_M_1_M['Z m'].values,\
+						   'Bed Elevation (mASL)':Z_1,'Q025 H bed (m)':CI95_bounds_1[0],'Q975 H bed (m)':CI95_bounds_1[1]})
 df_UFM_out = pd.concat([df_M_1,df_UFM_out],axis=1,ignore_index=False)
 df_UFM_out = df_UFM_out[df_UFM_out['Bed Elevation (mASL)'].notna()]
 
@@ -232,7 +233,8 @@ CI95_bounds_2 = [Z_2 - \
 			 	 	((df_M_2_M['Z m'].values - df_M_2_u['Z m'].values)**2 + \
 			 	 	 df_M_1_u['mH var'].values*1.96**2)**0.5]
 
-df_VFM_out = pd.DataFrame({'Bed Elevation (mASL)':Z_2,'Q025 Z bed (m)':CI95_bounds_2[0],'Q975 Z bed (m)':CI95_bounds_2[1]})
+df_VFM_out = pd.DataFrame({'Ice thickness (m)':df_M_2_u['Z m'],'Q025 Zice':df_M_2_m['Z m'].values,'Q975 Zice':df_M_2_M['Z m'].values,\
+						   'Bed Elevation (mASL)':Z_2,'Q025 H bed (m)':CI95_bounds_2[0],'Q975 H bed (m)':CI95_bounds_2[1]})
 df_VFM_out = pd.concat([df_M_2,df_VFM_out],axis=1,ignore_index=False)
 df_VFM_out = df_VFM_out[df_VFM_out['Bed Elevation (mASL)'].notna()]
 
