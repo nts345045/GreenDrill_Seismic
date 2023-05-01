@@ -13,7 +13,7 @@ sys.path.append('..')
 import util.Firn_Density as fdu
 
 # Primary Root Path
-ROOT = os.path.join('..','..','..','..')
+ROOT = os.path.join('..','..','..','..','..')
 # GIS Data Root
 GIROOT = os.path.join(ROOT,'gis','Contrib')
 BDNS = os.path.join(GIROOT,'BedMachineExtracts_NS.csv')

@@ -89,7 +89,7 @@ ROOT = os.path.join('..','..','..','..','..')
 MROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0','Inglefield_Land')
 # glob STRINGS
 GSTR1 = os.path.join(MROOT,'velocity_models','structure_experiments','S5A*.csv')
-# GSTR2 = os.path.join(MROOT,'velocity_models','structure_experiments','S5B*K?.csv')
+GSTR2 = os.path.join(MROOT,'velocity_models','structure_experiments','S5B*K?.csv')
 # Phase Travel-time v Offset data
 DPHZ = os.path.join(MROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3.csv')
 # Station locations
@@ -121,23 +121,22 @@ for f_ in flist1:
 
 df_SUM1 = pd.DataFrame(table1,columns=dout.keys())
 
-# # Extract Spread/Shot specific Modeling Results
-# flist2 = glob(GSTR2)
-# table2 = []
-# for f_ in flist2:
-# 	df_mod, dmeta = read_ZN_experiment(f_)
-# 	dout = find_bestfit(df_mod,dmeta,method='res L2')
-# 	line = list(dout.values())
-# 	table2.append(line)
+# Extract Spread/Shot specific Modeling Results
+flist2 = glob(GSTR2)
+table2 = []
+for f_ in flist2:
+	df_mod, dmeta = read_ZN_experiment(f_)
+	dout = find_bestfit(df_mod,dmeta,method='res L2')
+	line = list(dout.values())
+	table2.append(line)
 
-# df_SUM2 = pd.DataFrame(table2,columns=dout.keys()) 
+df_SUM2 = pd.DataFrame(table2,columns=dout.keys()) 
 
 # Load Phase Data
 df_picks = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 df_picks = df_picks[df_picks['SRoff m'].notna()]
 # Compile Model Summaries
-# df_SUM = pd.concat([df_SUM1,df_SUM2],axis=0,ignore_index=True)
-df_SUM = df_SUM1
+df_SUM = pd.concat([df_SUM1,df_SUM2],axis=0,ignore_index=True)
 
 # Iterate across each model and estimate the area of the bed reflection
 # based on shot-receiver midpoint coordinates calculated in STEP1
@@ -194,16 +193,16 @@ df_M.to_csv(OMFILE,header=True,index=False)
 # Filter depth models
 df_M_1 = df_M[(df_M['Experiment']=='Ex1')&(df_M['Data Kind']==1)&\
 				(df_M['Grid Resolution']=='VFINE')]
-df_M_2 = df_M[(df_M['Experiment']=='Ex2')&(df_M['Data Kind']==1)&\
-				(df_M['Grid Resolution']=='VFINE')]
+# df_M_2 = df_M[(df_M['Experiment']=='Ex2')&(df_M['Data Kind']==1)&\
+# 				(df_M['Grid Resolution']=='VFINE')]
 # Filter into firn model subsets
 df_M_1_m = df_M_1[df_M_1['Firn Model Quantile']=='Q025'].sort_values('Data Slice')
 df_M_1_M = df_M_1[df_M_1['Firn Model Quantile']=='Q975'].sort_values('Data Slice')
 df_M_1_u = df_M_1[df_M_1['Firn Model Quantile']=='mean'].sort_values('Data Slice')
-# Filter into firn model subsets
-df_M_2_m = df_M_2[df_M_2['Firn Model Quantile']=='Q025'].sort_values('Data Slice')
-df_M_2_M = df_M_2[df_M_2['Firn Model Quantile']=='Q975'].sort_values('Data Slice')
-df_M_2_u = df_M_2[df_M_2['Firn Model Quantile']=='mean'].sort_values('Data Slice')
+# # Filter into firn model subsets
+# df_M_2_m = df_M_2[df_M_2['Firn Model Quantile']=='Q025'].sort_values('Data Slice')
+# df_M_2_M = df_M_2[df_M_2['Firn Model Quantile']=='Q975'].sort_values('Data Slice')
+# df_M_2_u = df_M_2[df_M_2['Firn Model Quantile']=='mean'].sort_values('Data Slice')
 
 
 
@@ -224,20 +223,20 @@ df_UFM_out = df_UFM_out[df_UFM_out['Bed Elevation (mASL)'].notna()]
 
 df_UFM_out.to_csv(os.path.join(OMDIR,'Uniform_Firn_Bed_Elevation_Model.csv'),header=True,index=False)
 
-Z_2 = df_M_2_u['mH mean']-df_M_2_u['Z m']
+# Z_2 = df_M_2_u['mH mean']-df_M_2_u['Z m']
 
-CI95_bounds_2 = [Z_2 - \
-					((df_M_2_u['Z m'].values - df_M_2_m['Z m'].values)**2 + \
-					 df_M_2_u['mH var'].values*1.96**2)**0.5,\
-			 	 Z_2 + \
-			 	 	((df_M_2_M['Z m'].values - df_M_2_u['Z m'].values)**2 + \
-			 	 	 df_M_1_u['mH var'].values*1.96**2)**0.5]
+# CI95_bounds_2 = [Z_2 - \
+# 					((df_M_2_u['Z m'].values - df_M_2_m['Z m'].values)**2 + \
+# 					 df_M_2_u['mH var'].values*1.96**2)**0.5,\
+# 			 	 Z_2 + \
+# 			 	 	((df_M_2_M['Z m'].values - df_M_2_u['Z m'].values)**2 + \
+# 			 	 	 df_M_1_u['mH var'].values*1.96**2)**0.5]
 
-df_VFM_out = pd.DataFrame({'Bed Elevation (mASL)':Z_2,'Q025 Z bed (m)':CI95_bounds_2[0],'Q975 Z bed (m)':CI95_bounds_2[1]})
-df_VFM_out = pd.concat([df_M_2,df_VFM_out],axis=1,ignore_index=False)
-df_VFM_out = df_VFM_out[df_VFM_out['Bed Elevation (mASL)'].notna()]
+# df_VFM_out = pd.DataFrame({'Bed Elevation (mASL)':Z_2,'Q025 Z bed (m)':CI95_bounds_2[0],'Q975 Z bed (m)':CI95_bounds_2[1]})
+# df_VFM_out = pd.concat([df_M_2,df_VFM_out],axis=1,ignore_index=False)
+# df_VFM_out = df_VFM_out[df_VFM_out['Bed Elevation (mASL)'].notna()]
 
-df_VFM_out.to_csv(os.path.join(OMDIR,'Varying_Firn_Bed_Elevation_Model.csv'),header=True,index=False)
+# df_VFM_out.to_csv(os.path.join(OMDIR,'Varying_Firn_Bed_Elevation_Model.csv'),header=True,index=False)
 
 
 

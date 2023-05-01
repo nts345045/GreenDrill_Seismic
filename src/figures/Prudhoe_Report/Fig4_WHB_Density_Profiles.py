@@ -13,7 +13,7 @@ import util.Firn_Density as fdu
 
 
 
-ROOT = os.path.join('..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
+ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
 # Wiechert-Herglotz-Bateman Reference Spread Models
 UFMT = os.path.join(ROOT,'velocity_models','Spread_{SP}_v5_ele_MK2_ptO3_sutured_GeoRod_WHB_ODR_LHSn100.csv')
 
