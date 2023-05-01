@@ -12,7 +12,7 @@ sys.path.append(os.path.join('..','..'))
 import util.Reflectivity as ref
 
 
-ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
+ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Inglefield_Land')
 DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_Amps_RPOL_RT.csv')
 DA0a = os.path.join(ROOT,'A0_alpha_estimates.csv')
 
