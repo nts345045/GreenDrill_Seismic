@@ -77,7 +77,7 @@ def curve_fit_2Derr(fun,xx,yy,xsig,ysig,beta0=None,ifixb=None,fit_type=0):
 	:param xx: independent data
 	:param yy: dependent data
 	:param xsig: standard deviations of xx - data weights become 1/xsig**2
-	:param ysig: standard deviations of tt - data weights become 1/tsig**2
+	:param ysig: standard deviations of yy - data weights become 1/ysig**2
 	:param beta0: initial parameter estimates
 	:param ifixb: None or array-like of ints of rank-1 and equal length to beta: 
 						0 = free parameter

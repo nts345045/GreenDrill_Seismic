@@ -52,7 +52,7 @@ def diving_raypath_oval_est(X,Z,aKB):
 	# Calculate the ray-path length as the half perimeter
 	dd = pp/2
 	# Calculate travel time with the Kirchner & Bentley (1979) model
-	tt = aKB[0]*(1. - np.exp(-aKB[1]*xx)) + aKB[2]*(1. - np.exp(-aKB[3]*xx)) + aKB[4]*xx
+	tt = aKB[0]*(1. - np.exp(-aKB[1]*X)) + aKB[2]*(1. - np.exp(-aKB[3]*X)) + aKB[4]*X
 	return dd,tt
 
 
@@ -316,6 +316,44 @@ def add_halfspace(CakeMod,Vn,Hn=4000,verb=False):
 		print(NewMod)
 	return NewMod
 
+
+def raytrace_single(CakeMod,rr,Zsrc,Phase=cake.PhaseDef('p'),pps=10):
+	"""
+	Run ray-tracing through a layered velocity model for specified receiver 
+	locations, source depth, and phase type. This generally assumes that
+	the source is at a reflector and the ray-paths are the up-going paths of
+	rays in a common-midpoint (CMP) gather. 
+
+	Double path-length and travel-time values to get the full ray-path length and twtt.
+
+	:: INPUTS ::
+	:param CakeMod: cake.Model layercake velocity model object
+	:param rr: source-receiver offsets in meters
+	:param Zsrc: source depth (z positive down) in meters
+	:param Phase: cake.PhaseDef to use - default to cake.PhaseDef('p') to have an up-going P-wave
+	:param pps: points per segment to estimate within layers
+
+	:: OUTPUTS ::
+	:return tt: arrival time at each receiver
+	:return dd: travel path length from source to each receiver
+	:return thetai: takeoff angle (incidence angle of reflection)
+
+	"""
+	# Have near-0 values allowed, but not 0-valued
+	distances = [rr*cake.m2d]
+	tt = []; dd = []; thetai = [];
+	for arr_ in CakeMod.arrivals(distances,phases=Phase,zstart=Zsrc):
+		z_,x_,t_ = arr_.zxt_path_subdivided(points_per_straight=pps)
+		z_ = z_[0]
+		x_ = x_[0]*cake.d2m
+		t_ = t_[0]
+		thetai.append(np.arctan((z_[0] - z_[2])/(x_[2] - x_[0])))
+		tt.append(t_[-1])
+		dd.append(np.sum(np.sqrt((z_[:-1] - z_[1:])**2 +\
+								 (x_[:-1] - x_[1:])**2))*cake.d2m)
+	tt = np.array(tt)
+	dd = np.array(dd)/cake.d2m
+	return tt,dd,thetai
 
 def raytrace_explicit(CakeMod,rr,Zsrc,Phase=cake.PhaseDef('p'),pps=10):
 	"""

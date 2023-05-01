@@ -11,8 +11,9 @@ Migrate source amplitude estimation calculations from private into public, gener
 import numpy as np
 import os
 import sys
-sys.path.append('.')
-import InvTools as inv
+sys.path.append('..')
+sys.path.append(os.path.join('..','..'))
+import util.InvTools as inv
 
 def estimate_A0_diving(S_dir1,S_dir2,ATYPE='RMS Amp'):
 	"""
@@ -61,10 +62,10 @@ def estimate_A0_multiple(S_prime,S_mult,alpha,ATYPE='RMS Amp'):
 	:: OUTPUT ::
 	:return A0: Estimate of soruce-amplitude
 	"""
-	A1 = np.abs(S_prime[ATYPE].values[0])
-	A2 = np.abs(S_mult[ATYPE].values[0])
-	d1 = S_prime['dd m'].values[0]
-	d2 = S_mult['dd m'].values[0]
+	A1 = np.abs(S_prime[ATYPE])
+	A2 = np.abs(S_mult[ATYPE])
+	d1 = S_prime['dd m']
+	d2 = S_mult['dd m']
 	y1 = d1**-1
 	y2 = d2**-1
 	A0 = (A1**2/A2)*(y2/y1**2)*np.exp(alpha*(2*d1 - d2))
@@ -96,7 +97,7 @@ def calculate_R_direct(A0,A1,dd,alpha):
 
 
 
-def estimate_A0_alpha_diving(A_D,d_D):
+def estimate_A0_alpha_diving(A_D,d_D,A_sig=None,d_sig=None):
 	"""
 	Calculate the source amplitude and path-averaged attenuation
 	using semi-log regression of diving-wave amplitudes and modeled
@@ -107,12 +108,22 @@ def estimate_A0_alpha_diving(A_D,d_D):
 	:param d_D: Diving wave ray-paths [array-like]
 
 	:: OUTPUT ::
+	:return A0: Source strength
+	:return alpha: attenuation coefficient
+	:return var_A0: Source strength variance
+	:return var_alpha: attenuation coefficient variance
 	:return beta: ODR fitting results (see scipy.odr.ODR)
 	"""
-	yobs = np.log(A_D/d_D)
-	xobs = df_D
-	# if sigma_A_D is not None:
+	# Compose linearized terms
+	yobs = np.log(A_D*d_D)
+	xobs = d_D
+	# Do orthogonal distance regression
+	beta = inv.curve_fit_2Derr(inv.lin_fun,xobs,yobs,A_sig,d_sig)
+	# Extract values and covariance matrix
+	alpha = -1.*beta.beta[0]
+	A0 = np.exp(beta.beta[1])
+	var_alpha = beta.sd_beta[0]**2
+	var_A0 = (A0*beta.sd_beta[1])**2
 
-	beta = inv.curve_fit_2Derr(inv.linfun,xobs,yobs)
-	return beta
+	return A0,alpha,var_A0,var_alpha,beta
 
