@@ -2,6 +2,11 @@
 :module: S9_Reflectivity_Modeling.py
 :purpose: Conduct calculation of bed reflectivity from A0 and alpha estimates
 		  from the previous step
+
+:: TODO ::
+Bring in information about data filtering and check if there is a 
+systematic bias introduced by filtering to R(\\Theta) calculations.
+
 """
 import os
 import sys
