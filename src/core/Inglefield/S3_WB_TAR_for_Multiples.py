@@ -79,7 +79,7 @@ df_META = df_META[df_META['Site']=='Hiawatha']
 # Load picks
 df_PICK = pd.read_csv(PD_DTX)
 
-breakpoint()
+# breakpoint()
 # Iterate across spread-shot combinations
 for SP_,SH_ in df_META[['Spread','Shot #']].value_counts().index:
 	print('Processing {} {}'.format(SP_,SH_))
@@ -122,6 +122,10 @@ for SP_,SH_ in df_META[['Spread','Shot #']].value_counts().index:
 		# Trim trace
 		trace = trace.trim(starttime=UTCDateTime(S_i['t0 ref']),\
 						   endtime=UTCDateTime(S_i['t0 ref'] + RL))
+		OFILE = '%s.%s.%s.%s._t0_corr_RAW.mseed'%nslc
+		tr_ = trace.copy()
+		tr_.stats.starttime = UTCDateTime(0)
+		tr_.write(os.path.join(OPATH,OFILE),fmt='MSEED')
 		# trace = trace.trim(endtime=UTCDateTime(0) + RL)
 		df_J = df_PG[(df_PG['sta']==S_i['sta']) & (df_PG['chan'] == S_i['chan'])]
 		for j_ in range(len(df_J)):
