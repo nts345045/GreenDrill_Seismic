@@ -12,6 +12,10 @@
 			polarity agreement on all traces with direct & reflected/multiple arrivals
 
 :: TODO ::
+ - Pull filtering data from updated pick file names PSR.<fmin>.<fmax>.picks.dat
+ - Update pick file as output with amplitudes
+ - Handle new entries
+ - Handle kind = 3 for getting only RMS amplitude
 """
 import pandas as pd
 import numpy as np

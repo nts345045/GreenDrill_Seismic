@@ -7,6 +7,8 @@ to traces
 :AUTH: Nathan T. Stevens
 :EMAIL: nts5045@psu.edu
 
+:TODO:
+ - Propagate SmartSolo picks and waveforms
 
 """
 import os

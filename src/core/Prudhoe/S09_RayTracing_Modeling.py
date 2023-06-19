@@ -8,8 +8,9 @@
 :email: nts5045@psu.edu | ntstevens@wisc.edu
 
 :: TODO ::
-WORK IN PROGRESS - MUST FILL IN METHODS FOR RAY-PATH LENGTHS
-
+ - Add in methods for handling multiples
+ 	- include modeled path for only full multiple? i.e., surface bounce.
+ 	- Consider firn-bottom bounce?
 """
 
 import sys

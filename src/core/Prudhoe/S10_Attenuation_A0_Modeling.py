@@ -2,7 +2,10 @@
 :module: S8_Attenuation_A0_Modeling.py
 :purpose: Estimate source-strengths and attenuation from GeoRod amplitudes defined by the equation
 			ln(Ai/d) = 
-:
+:auth: Nathan T. Stevens
+:email: nts5045@psu.edu
+:TODO:
+	- update A0 estimation from multiples with new nomenclature.
 """
 import os
 import sys
