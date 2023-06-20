@@ -1,5 +1,5 @@
 """
-:module: S8_Attenuation_A0_Modeling.py
+:module: S11_Attenuation_A0_Modeling.py
 :purpose: Estimate source-strengths and attenuation from GeoRod amplitudes defined by the equation
 			ln(Ai/d) = 
 :auth: Nathan T. Stevens
@@ -22,7 +22,7 @@ if isplot:
 
 ## MAP DATA ##
 ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
-DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_Amps_RPOL_RT.csv')
+DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_PSR_Amps_RPOL_RT.csv')
 OFILE = os.path.join(ROOT,'A0_alpha_estimates.csv') 
 
 # Load picks
@@ -38,7 +38,7 @@ min_data = 5
 df_P = df_picks[df_picks['phz']=='P']
 
 # Subset multiples
-df_R = df_picks[df_picks['phz']=='R']
+df_R = df_picks[(df_picks['phz']=='R')&(df_picks['kind'].isin([1,2,3]))]
 
 if isplot:
 	fig = plt.figure()
@@ -87,11 +87,12 @@ for i_ in range(len(df_R)):
 	# Match to a primary reflection pick
 	S_Si = df_picks[(df_picks['phz']=='S')&\
 					 (df_picks['shot #']==SH_)&\
-					 (df_picks['chan']==RE_)].iloc[0,:].T
-
+					 (df_picks['chan']==RE_)]\
+					.iloc[0,:].T
+	# TODO: Need to match
 	for AT_ in ['Peak Amp','RMS Amp','Cycle RMS Amp']:
 		iA0 = ref.estimate_A0_multiple(S_Si,S_Mi,DF['alpha'].median(),AT_)
-		line = [SH_,IT_,'multiple',AT_,iA0,nan,nan,nan,nan]
+		line = [SH_,IT_,'multiple%d'%(S_Mi['kind']),AT_,iA0,nan,nan,nan,nan]
 		lines.append(line)
 
 DF = DataFrame(lines,columns=['shot #','itype','method','A type','A0','alpha','var A0','var alpha','cov log(A0)-alpha'])
@@ -112,7 +113,11 @@ for A_ in df['A type'].unique():
 					# if M_ == 'multiple':
 			if M_ == 'semilog':
 				fmt = 'd'
-			else:
+			elif M_ == 'multiple1':
+				fmt = '^'
+			elif M_ == 'multiple2':
+				fmt = 'v'
+			elif M_ == 'multiple3':
 				fmt = '.'
 			idf = df[(df['method']==M_)&(df['A type']==A_)&(df['itype']==I_)]
 			axs[ia_].plot(idf['shot #'],idf['A0'],fmt,alpha=0.5,label=flbl)

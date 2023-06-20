@@ -25,13 +25,14 @@ import util.Dix_1D_Raytrace_Analysis as d1d
 ### MAP DATA ###
 ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
 OROOT = os.path.join(ROOT,'velocity_models')
-DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_Amps_RPOL.csv')
+DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_PSR_Amps_RPOL.csv')
 DMOD = os.path.join(ROOT,'velocity_models','structure_summary','Uniform_Firn_Bed_Elevation_Model.csv')
 # Wiechert-Herglotz-Bateman Reference Model(s)
 DWHB = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_WHB_ODR_LHSn100.csv')
 # Reference KB79 Model
 DKB79 = os.path.join(ROOT,'velocity_models','Full_v5_ele_MK2_ptO3_sutured_KB79_ODR.csv')
-OUTFILE = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_Amps_RPOL_RT.csv')
+# Output File
+OUTFILE = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_PSR_Amps_RPOL_RT.csv')
 
 
 # Load pick data
