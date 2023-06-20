@@ -1,6 +1,6 @@
 """
-:module: S2_Amplitude_Polarity_Extraction.py
-:purpose: STEP 2 - Extract amplitude measures and polarity values for all picks from waveform data and write
+:module: S06_Amplitude_Polarity_Extraction.py
+:purpose: STEP 6 - Extract amplitude measures and polarity values for all picks from waveform data and write
 				to file for quick access in subsequent amplitude analyses
 :auth: Nathan T. Stevens
 :email: nts5045@psu.ed | ntstevens@wisc.edu
@@ -116,6 +116,8 @@ def fetch_amplitudes(df_picks,wf_,t0pad=0.005,tfpad=0.055,fftpad=0.01):
 			# Get additional metrics based on the defined "first cycle"
 			if len(S_i) >= 1 and len(S_j) >= 1:
 				dtij = tj - ti
+				if dtij == 0:
+					breakpoint()
 				Aij = TsT.apply_to_windowed_trace(trf,ti - 0.5*dtij,tj + 0.5*dtij)
 			else:
 				dtij = np.nan; Aij = np.nan
@@ -193,14 +195,15 @@ def fetch_amplitudes_driver(df_picks,t0pad=0.005,tfpad=0.055,fftpad=0.01):
 ##### ACTUAL PROCESSING #####
 ROOT = os.path.join('..','..','..','..','..')
 DROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
-DPHZ = os.path.join(DROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured.csv')
+DPHZ = os.path.join(DROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_PSR.csv')
+
 ### LOAD PHASE DATA ###
 df_ = pd.read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')
 ### RUN CORE PROCESSING ###
 df_R_PD,df_picks_updated = fetch_amplitudes_driver(df_,fftpad=0.02)
 ### WRITE DIRECTORIES TO DISK ###
-df_R_PD.to_csv(os.path.join(DROOT,'AmpSpect_Extraction_Index_v5_MK2.csv'),header=True,index=False)
-df_picks_updated.to_csv(os.path.join(DROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_Amps.csv'),header=True,index=False)
+df_R_PD.to_csv(os.path.join(DROOT,'AmpSpect_Extraction_Index_v5_MK2_PSR.csv'),header=True,index=False)
+df_picks_updated.to_csv(os.path.join(DROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_PSR_Amps.csv'),header=True,index=False)
 
 # breakpoint()
 ### Process Relative Polarity
@@ -210,33 +213,40 @@ df_R = df_picks_updated[df_picks_updated['phz']=='R']
 
 PS_pol = []; PS_ind = []
 PR_pol = []; PR_ind = []
+SR_pol = []; SR_ind = []
 # Iterate across all P-picks
 for SH_,ST_,CH_,DK_ in df_P[['shot #','sta','chan','kind']].value_counts().index:
-	# Subset for diving wave pick
-	idf_P = df_P[(df_P['shot #']==SH_)&(df_P['sta']==ST_)&(df_P['chan']==CH_)&(df_P['kind']==DK_)]
-	# Subset for matching reflected wave pick
-	idf_S = df_S[(df_S['shot #']==SH_)&(df_S['sta']==ST_)&(df_S['chan']==CH_)&(df_S['kind']==DK_)]
-	# Subset for matching multiply reflected wave pick
-	idf_R = df_R[(df_R['shot #']==SH_)&(df_R['sta']==ST_)&(df_R['chan']==CH_)&(df_R['kind']==DK_)]
-	# breakpoint()
-	if len(idf_S) > 0:
-		P_pol = idf_P['Polarity'].values[0]
-		S_pol = idf_S['Polarity'].values[0]
-		PS_ind.append(idf_S.index[0])
-		PS_pol.append(P_pol*S_pol)
-	if len(idf_R) > 0:
-		P_pol = idf_P['Polarity'].values[0]
-		R_pol = idf_R['Polarity'].values[0]
-		PR_ind.append(idf_R.index[0])
-		PR_pol.append(P_pol*R_pol)		
+	# Only do polarity matching for kinds 1 and 2 - other kinds [0, 3, 5] not used for polarity defining picks
+	if DK_ in [1,2]:
+		# Subset for diving wave pick
+		idf_P = df_P[(df_P['shot #']==SH_)&(df_P['sta']==ST_)&(df_P['chan']==CH_)&(df_P['kind']==DK_)]
+		# Subset for matching reflected wave pick
+		idf_S = df_S[(df_S['shot #']==SH_)&(df_S['sta']==ST_)&(df_S['chan']==CH_)&(df_S['kind']==DK_)]
+		# Subset for matching multiply reflected wave pick
+		idf_R = df_R[(df_R['shot #']==SH_)&(df_R['sta']==ST_)&(df_R['chan']==CH_)&(df_R['kind']==DK_)]
+		# breakpoint()
+		if len(idf_S) > 0:
+			P_pol = idf_P['Polarity'].values[0]
+			S_pol = idf_S['Polarity'].values[0]
+			PS_ind.append(idf_S.index[0])
+			PS_pol.append(P_pol*S_pol)
+		if len(idf_R) > 0:
+			P_pol = idf_P['Polarity'].values[0]
+			R_pol = idf_R['Polarity'].values[0]
+			PR_ind.append(idf_R.index[0])
+			PR_pol.append(P_pol*R_pol)
+		if len(idf_S) > 0 and len(idf_R) > 0:
+			SR_ind.append(idf_R.index[0])
+			SR_pol.append(S_pol*R_pol)
 
 
 S_PS_pol = pd.Series(PS_pol,index=PS_ind,name='PS Relative Polarity')
 S_PR_pol = pd.Series(PR_pol,index=PR_ind,name='PR Relative Polarity')
+S_SR_pol = pd.Series(SR_pol,index=SR_ind,name='SR Relative Polarity')
 
 
-df_picks_updated = pd.concat([df_picks_updated,S_PS_pol,S_PR_pol],axis=1,ignore_index=False)
-df_picks_updated.to_csv(os.path.join(DROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_Amps_RPOL.csv'),header=True,index=False)
+df_picks_updated = pd.concat([df_picks_updated,S_PS_pol,S_PR_pol,S_SR_pol],axis=1,ignore_index=False)
+df_picks_updated.to_csv(os.path.join(DROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_PSR_Amps_RPOL.csv'),header=True,index=False)
 
 
 ##### END #####
