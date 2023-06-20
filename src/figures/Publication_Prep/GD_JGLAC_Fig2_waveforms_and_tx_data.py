@@ -85,9 +85,9 @@ IM_WF.sort()
 
 # Corrected t(x) data
 PD_DTX = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0',\
-					 'Prudhoe_Dome','Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_Amps_RPOL_RT.csv')
+					 'Prudhoe_Dome','Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_PSR_Amps_RPOL_RT.csv')
 IM_DTX = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0',\
-					 'Inglefield_Land','Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_Amps_RPOL.csv')
+					 'Inglefield_Land','Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_PSR_Amps_RPOL.csv')
 
 
 ### LOAD DATA ###
