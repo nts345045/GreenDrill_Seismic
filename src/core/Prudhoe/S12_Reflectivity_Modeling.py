@@ -18,7 +18,7 @@ import util.Reflectivity as ref
 
 
 ROOT = os.path.join('..','..','..','..','..','processed_data','Hybrid_Seismic','VelCorrected_t0','Prudhoe_Dome')
-DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_Amps_RPOL_RT.csv')
+DPHZ = os.path.join(ROOT,'Corrected_Phase_Picks_v5_ele_MK2_pfO3_sutured_PSR_Amps_RPOL_RT.csv')
 DA0a = os.path.join(ROOT,'A0_alpha_estimates.csv')
 
 df_picks = read_csv(DPHZ,parse_dates=['time']).sort_values('SRoff m')

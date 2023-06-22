@@ -11,7 +11,7 @@ import os
 import sys
 from pandas import DataFrame,read_csv
 from tqdm import tqdm
-from numpy import log, exp, polyfit, nan
+from numpy import nan, std, mean, log, exp, polyfit, poly1d
 sys.path.append(os.path.join('..','..'))
 import util.Reflectivity as ref
 
@@ -32,13 +32,19 @@ df_picks = df_picks[df_picks['kind']==2]
 # Minimum offset to isolate linear portion of A*d(d)
 SRmin = 250
 # Minimum number of data for linear regression
-min_data = 5
+min_data = 8
+# Coefficient for outlier detection (C_out*std(res))
+C_out = 5
+WL_ = 1
 
 # Subset diving waves
 df_P = df_picks[df_picks['phz']=='P']
 
 # Subset multiples
-df_R = df_picks[(df_picks['phz']=='R')&(df_picks['kind'].isin([1,2,3]))]
+df_R = df_picks[(df_picks['phz']=='R') &\
+				(df_picks['kind'].isin([1,2,3])) &\
+				(df_picks['SR Relative Polarity'].notna()) &\
+				(df_picks['SRoff m'] < 800)]
 
 if isplot:
 	fig = plt.figure()
@@ -55,13 +61,21 @@ for SH_,IT_ in df_P[['shot #','itype']].value_counts().sort_index().index:
 			jdf = idf[idf[AT_].notna()]
 			A_D = abs(jdf[AT_])
 			d_D = jdf['dd m']
+			# Conduct initial linear fitting
+			imod,icov = polyfit(d_D.values,log(A_D.values*d_D.values),1,cov=True)
+			# Get residuals
+			res = log(A_D.values*d_D.values) - poly1d(imod)(d_D.values)
+			# Filter for outliers
+			IND = (abs(res) <= C_out*std(res)) & (abs(res) < WL_)
 			if isplot:
 				if IT_ == 'Node':
 					ax1.plot(d_D,log(A_D*d_D),'.-',label=str(SH_))
+					ax1.plot(d_D[~IND],log(A_D[~IND]*d_D[~IND]),'ks')
 				else:
 					ax2.plot(d_D,log(A_D*d_D),'.-',label=str(SH_))
-
-			imod,icov = polyfit(d_D.values,log(A_D.values*d_D.values),1,cov=True)
+					ax2.plot(d_D[~IND],log(A_D[~IND]*d_D[~IND]),'ks')
+			# Conduct second linear fitting with outliers rejected
+			imod,icov = polyfit(d_D.values[IND],log(A_D.values[IND]*d_D.values[IND]),1,cov=True)
 			iA0 = exp(imod[1])
 			ia = -1.*imod[0]
 			ivarA0 = icov[1,1]*iA0**2
@@ -73,6 +87,10 @@ for SH_,IT_ in df_P[['shot #','itype']].value_counts().sort_index().index:
 	else:
 		line = [SH_,IT_,'semilog',nan,nan,nan,nan,nan,nan]
 		lines.append(line)
+
+
+
+
 # Compose dataframe here to allow use of average alpha estimate in subsequent steps
 DF = DataFrame(lines,columns=['shot #','itype','method','A type','A0','alpha','var A0','var alpha','cov log(A0)-alpha'])
 
@@ -120,7 +138,11 @@ for A_ in df['A type'].unique():
 			elif M_ == 'multiple3':
 				fmt = '.'
 			idf = df[(df['method']==M_)&(df['A type']==A_)&(df['itype']==I_)]
-			axs[ia_].plot(idf['shot #'],idf['A0'],fmt,alpha=0.5,label=flbl)
+			if A_ == 'semilog':
+				MS = 20
+			else:
+				MS = 5
+			axs[ia_].semilogy(idf['shot #'],idf['A0'],fmt,ms=MS,alpha=0.5,label=flbl)
 		axs[ia_].legend()
 		axs[ia_].set_title('{} {}'.format(A_,I_))
 		ia_ += 1
