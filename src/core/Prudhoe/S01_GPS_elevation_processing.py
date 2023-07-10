@@ -18,18 +18,28 @@ sys.path.append(os.path.join('..','..'))
 import util.GeometryTools as gt
 
 ## DIRECTORY/FILE MAPPING SECTION ##
-ROOT = os.path.join('..','..','..','..','..')
-SITE = os.path.join(ROOT,'data','Combined_SITE_Table.csv')
-TRACK = os.path.join(ROOT,'data','GPS','Prudhoe_Tracks_Raw.csv')
-SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd.csv')
-ODIR = os.path.join(ROOT,'processed_data','GPS')
-OSITE = os.path.join(ROOT,'processed_data','PL_SITE_Table_ELE_corr.csv')
-OSHOT = os.path.join(ROOT,'processed_data','Active_Seismic','PL_Shot_Record_QCd_ELE_corr.csv')
+# ROOT = os.path.join('..','..','..','..','..')
+# SITE = os.path.join(ROOT,'data','Combined_SITE_Table.csv')
+# TRACK = os.path.join(ROOT,'data','GPS','Prudhoe_Tracks_Raw.csv')
+# SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd.csv')
+ROOT = os.path.join('..','..','..')
+SITE = os.path.join(ROOT,'data','Combined','Combined_SITE_Table.csv')
+SHOT = os.path.join(ROOT,'data','Combined','Master_Shot_Record_QCd.csv')
+TRACK = os.path.join(ROOT,'data','Prudhoe_Dome','GPS','Prudhoe_Tracks_Raw.csv')
+# Output paths/files
+# ODIR = os.path.join(ROOT,'processed_data','GPS')
+# OSITE = os.path.join(ROOT,'processed_data','PL_SITE_Table_ELE_corr.csv')
+# OSHOT = os.path.join(ROOT,'processed_data','Active_Seismic','PL_Shot_Record_QCd_ELE_corr.csv')
+ODIR = os.path.join(ROOT,'processed','Prudhoe_Dome','meta')
+OSITE = os.path.join(ODIR,'PD_SITE_Table_ELE_corr.csv')
+OSHOT = os.path.join(ODIR,'PD_SHOT_Record_QCd_ELE_corr.csv')
+
 
 ## DATA LOADING SECTION ##
 df_SITE = pd.read_csv(SITE,parse_dates=['Starttime','Endtime'])
 # Fiter down to just SmartSolos
-df_SITE = df_SITE[(df_SITE['Network']=='PL')]
+# df_SITE = df_SITE[(df_SITE['Network']=='PL')]
+df_SITE = df_SITE[(df_SITE['Network']=='PD')]
 # Load GPS Tracks
 df_GPS = pd.read_csv(TRACK,parse_dates=['time'],index_col=[0])
 # Trim off extraneous (empty) fields
@@ -156,10 +166,11 @@ df_GPSc = df_GPSc[df_GPSc['mean(dZ)'].notna()]
 
 ### GEOROD AND STATION ELEVATION CORRECTION SECTION ###
 
-# Write corrected data to file
-df_GPSc.to_csv(os.path.join(ODIR,'Prudhoe_Elevation_Corrected_GPS_Tracks.csv'),\
+# # Write corrected data to file
+# df_GPSc.to_csv(os.path.join(ODIR,'Prudhoe_Elevation_Corrected_GPS_Tracks.csv'),\
+# 			   header=True,index=True)
+df_GPSc.to_csv(os.path.join(ODIR,'Prudhoe_ELE_Corrected_GPS_Tracks.csv'),\
 			   header=True,index=True)
-
 # Update SITE data
 onlynodes = False
 # Subset SITE by instrument type

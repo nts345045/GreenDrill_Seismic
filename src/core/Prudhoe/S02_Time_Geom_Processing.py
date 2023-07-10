@@ -464,16 +464,28 @@ def run_pick_concat():
 	return df_out
 
 ##### ACTUAL PROCESSING #####
-ROOT = os.path.join('..','..','..','..','..')
-MROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','Corrected_t0')
-OROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0')
-ICSV = os.path.join(MROOT,'Amplitude_Pick_File_Metadata_v5.csv')
+# ROOT = os.path.join('..','..','..','..','..')
+# MROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','Corrected_t0')
+# OROOT = os.path.join(ROOT,'processed_data','Hybrid_Seismic','VelCorrected_t0')
+# ICSV = os.path.join(MROOT,'Amplitude_Pick_File_Metadata_v5.csv')
+# # SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd.csv')
+# SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','PL_Shot_Record_QCd_ELE_corr.csv')
+# # SITE = os.path.join(ROOT,'data','Combined_SITE_Table.csv')
+# SITE = os.path.join(ROOT,'processed_data','PL_SITE_Table_ELE_corr.csv')
+# GPSc = os.path.join(ROOT,'processed_data','GPS','Prudhoe_Elevation_Corrected_GPS_Tracks.csv')
 
-# SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','Master_Shot_Record_QCd.csv')
-SHOT = os.path.join(ROOT,'processed_data','Active_Seismic','PL_Shot_Record_QCd_ELE_corr.csv')
-# SITE = os.path.join(ROOT,'data','Combined_SITE_Table.csv')
-SITE = os.path.join(ROOT,'processed_data','PL_SITE_Table_ELE_corr.csv')
-GPSc = os.path.join(ROOT,'processed_data','GPS','Prudhoe_Elevation_Corrected_GPS_Tracks.csv')
+##### UPDATED PATHS #####
+# Path to project root directory
+ROOT = os.path.join('..','..','..')
+# Initial pick metadata
+ICSV = os.path.join(ROOT,'data','Combined','Amplitude_Pick_File_Metadata_v5.csv')
+# Shot metadata (with elevation corrections from S01)
+SHOT = os.path.join(ROOT,'processed','Prudhoe_Dome','meta','PL_SHOT_Record_QCd_ELE_corr.csv')
+# Site metadata (with elevation corrections from S01)
+SITE = os.path.join(ROOT,'processed','Prudhoe_Dome','meta','PL_SITE_Table_ELE_corr.csv')
+# GPS tracks (with elevation corrections from S01)
+GPSc = os.path.join(ROOT,'processed','Prudhoe_Dome','meta','Prudhoe_ELE_Corrected_GPS_Tracks.csv')
+
 
 ## Load METADATA ##
 df_META = pd.read_csv(ICSV)
@@ -483,7 +495,7 @@ df_SHOT = pd.read_csv(SHOT)
 df_SHOT = df_SHOT[df_SHOT['Site']=='Prudhoe']
 ## Load SITE Locations ##
 df_SITE = pd.read_csv(SITE,parse_dates=['Starttime','Endtime'])
-df_SITE = df_SITE[df_SITE['Network']=='PL']
+df_SITE = df_SITE[df_SITE['Network']=='PD']
 ## Load GPSc Data ##
 df_GPSc = pd.read_csv(GPSc,parse_dates=['time'],index_col=[0])
 

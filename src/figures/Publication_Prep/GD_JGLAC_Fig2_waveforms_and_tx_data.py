@@ -15,40 +15,6 @@ import matplotlib.pyplot as plt
 from obspy import read, UTCDateTime, Stream
 from glob import glob
 
-
-
-### SUBROUTINES ###
-
-def WB_TAR_tr(tr,tWB=None,C=6):
-	"""
-	Apply a Water Bottom True Amplitude Recovery
-	to an obspy.core.Trace object
-	
-	:: INPUTS ::
-	:param tr: [obspy.core.Trace] Trace to copy and apply TAR to
-	:param tWB: [obspy.core.UTCDateTime or None] water bottom time
-	:param C: [float] gain correction factor (dB/sec)
-	"""
-	# Copy data vector
-	dat = tr.copy().data
-	# Get time deltas
-	dt = np.linspace(0,tr.stats.endtime - tr.stats.starttime,tr.stats.npts)
-	# If a user-defined WB time is provided, apply to dt
-	if isinstance(tWB,UTCDateTime):
-		dt -= (tWB - tr.stats.starttime)
-	# Apply gain to data following the WB time
-	# breakpoint()
-	dat = np.r_[dat[dt < 0.],dat[dt >= 0.] *10.**((C*dt[dt >= 0.])/20.)]
-	# Create a copy of the trace for output
-	trTAR = tr.copy()
-	trTAR.data = dat
-	try:
-		trTAR.stats.processing.append('Custom: WB_TAR_tr(tWB=%s,C=%.2f)'%(str(tWB),C))
-	except:
-		trTAR.stats.update({'processing':['Custom: WB_TAR_tr(tWB=%s,C=%.2f)'%(str(tWB),C)]})
-	return trTAR
-
-
 ### USER CONTROL SECTION ###
 filt_then_tar = False
 

@@ -1,3 +1,6 @@
 
 *.mseed
 *.segy
+*.csv
+*.txt
+*.dat
